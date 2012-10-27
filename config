@@ -1,0 +1,19 @@
+ngx_feature_libs="-llua -lm"
+
+
+CORE_LIBS="$CORE_LIBS $ngx_feature_libs"
+
+ngx_addon_name=ngx_tcp_lua_module
+EVENT_MODULES="$EVENT_MODULES ngx_tcp_module ngx_tcp_core_module ngx_tcp_lua_module"
+NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/src/ngx_tcp.c \
+                $ngx_addon_dir/src/ngx_tcp_core_module.c \
+                $ngx_addon_dir/src/ngx_tcp_session.c \
+                $ngx_addon_dir/src/ngx_tcp_access.c \
+                $ngx_addon_dir/src/ngx_tcp_lua_module.c \
+                $ngx_addon_dir/src/ngx_tcp_lua_cache.c \
+                $ngx_addon_dir/src/ngx_tcp_lua_clfactory.c \
+                $ngx_addon_dir/src/ngx_tcp_lua_util.c \
+                $ngx_addon_dir/src/ngx_tcp_lua_exception.c \
+                $ngx_addon_dir/src/ngx_tcp_lua_output.c \
+                $ngx_addon_dir/src/ngx_tcp_lua_socket.c"
+
