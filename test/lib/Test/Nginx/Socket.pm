@@ -215,6 +215,9 @@ sub apply_moves($$) {
     my $current_move = shift @$r_move;
     my $in_packet_cursor = 0;
     my @result = ();
+#warn "packet: $current_packet";
+#push @result, $current_packet;
+#return \@result;
     while (defined $current_packet) {
         if (!defined $current_move) {
             push @result, $current_packet;
@@ -583,7 +586,9 @@ again:
         }
 
         if (!defined $block->ignore_response) {
-            check_error_code($block, $res, $dry_run, $req_idx, $need_array);
+            check_raw_response($block, $raw_resp, $dry_run, 
+                $req_idx, $need_array);
+            #check_error_code($block, $res, $dry_run, $req_idx, $need_array);
             check_raw_response_headers($block, $raw_headers, $dry_run, $req_idx, $need_array);
             check_response_headers($block, $res, $raw_headers, $dry_run, $req_idx, $need_array);
             check_response_body($block, $res, $dry_run, $req_idx, $need_array);
@@ -717,6 +722,24 @@ sub check_error_code ($$$$$) {
 
         } else {
             is( ($res && $res->code) || '', 200, "$name - status code ok" );
+        }
+    }
+}
+
+sub check_raw_response($$$$$) {
+    my ($block, $raw_resp, $dry_run, $req_idx, $need_array) = @_;
+    my $name = $block->name;
+    if ( defined $block->raw_response) {
+        SKIP: {
+            skip "$name - tests skipped due to the lack of directive $dry_run", 1 if $dry_run;
+            #my $expected = get_indexed_value($name,
+            #                                 $block->raw_response,
+            #                                 $req_idx,
+            #                                 $need_array);
+            #like $raw_resp, qr/$expected/s, "$name - raw resp headers like";
+            my $chop_str = $block->raw_response;
+            #chop $chop_str;
+            is $raw_resp, $chop_str, "$name - resp ok";
         }
     }
 }
@@ -981,7 +1004,6 @@ sub parse_response($$$) {
     }
 
     #warn "raw headers: $raw_headers\n";
-
     my $res = HTTP::Response->parse($raw_resp);
     my $enc = $res->header('Transfer-Encoding');
 
