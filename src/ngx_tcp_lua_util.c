@@ -1,4 +1,5 @@
 
+#include "ngx_md5.h"
 #include "ngx_tcp_lua_util.h"
 #include "ngx_tcp_lua_output.h"
 #include "ngx_tcp_lua_socket.h"
@@ -496,7 +497,7 @@ ngx_tcp_lua_wev_handler(ngx_tcp_session_t *s)
         return;
     }
 
-    if (rc == NGX_DONE) {
+    if (rc == NGX_DONE || rc == NGX_OK) {
         ngx_tcp_finalize_session(s);
         return;
     }
@@ -604,6 +605,20 @@ ngx_tcp_lua_chains_get_free_buf(ngx_log_t *log, ngx_pool_t *p,
     cl->next = NULL;
 
     return cl;
+}
+
+
+u_char *
+ngx_tcp_lua_digest_hex(u_char *dest, const u_char *buf, int buf_len)
+{
+    ngx_md5_t                     md5;
+    u_char                        md5_buf[MD5_DIGEST_LENGTH];
+
+    ngx_md5_init(&md5);
+    ngx_md5_update(&md5, buf, buf_len);
+    ngx_md5_final(md5_buf, &md5);
+
+    return ngx_hex_dump(dest, md5_buf, sizeof(md5_buf));
 }
 
 

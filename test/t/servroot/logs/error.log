@@ -1,0 +1,113 @@
+2012/10/29 17:35:43 [debug] 9530#0: bind() 0.0.0.0:1980 #6 
+2012/10/29 17:35:43 [debug] 9530#0: bind() 0.0.0.0:1984 #7 
+2012/10/29 17:35:43 [notice] 9530#0: using the "epoll" event method
+2012/10/29 17:35:43 [notice] 9530#0: nginx/1.3.7
+2012/10/29 17:35:43 [notice] 9530#0: built by gcc 4.6.3 (Ubuntu/Linaro 4.6.3-1ubuntu5) 
+2012/10/29 17:35:43 [notice] 9530#0: OS: Linux 3.2.0-23-generic-pae
+2012/10/29 17:35:43 [notice] 9530#0: getrlimit(RLIMIT_NOFILE): 1024:4096
+2012/10/29 17:35:43 [debug] 9531#0: write: 8, BF87E186, 5, 0
+2012/10/29 17:35:43 [debug] 9531#0: malloc: 088BBA50:6144
+2012/10/29 17:35:43 [debug] 9531#0: malloc: 088BD258:6144
+2012/10/29 17:35:43 [debug] 9531#0: malloc: 088BEA60:3328
+2012/10/29 17:35:43 [debug] 9531#0: malloc: 088BF768:3328
+2012/10/29 17:35:43 [debug] 9531#0: epoll add event: fd:6 op:1 ev:00000001
+2012/10/29 17:35:43 [debug] 9531#0: epoll add event: fd:7 op:1 ev:00000001
+2012/10/29 17:35:43 [debug] 9531#0: worker cycle
+2012/10/29 17:35:43 [debug] 9531#0: epoll timer: -1
+2012/10/29 17:35:44 [debug] 9531#0: epoll: fd:6 ev:0001 d:088BD258
+2012/10/29 17:35:44 [debug] 9531#0: accept on 0.0.0.0:1980, ready: 0
+2012/10/29 17:35:44 [debug] 9531#0: posix_memalign: 088B6A50:256 @16
+2012/10/29 17:35:44 [debug] 9531#0: *1 accept: 127.0.0.1 fd:8
+2012/10/29 17:35:44 [debug] 9531#0: *1 event timer add: 8: 10000:2883623089
+2012/10/29 17:35:44 [debug] 9531#0: *1 epoll add event: fd:8 op:1 ev:80000001
+2012/10/29 17:35:44 [debug] 9531#0: timer delta: 73
+2012/10/29 17:35:44 [debug] 9531#0: posted events 00000000
+2012/10/29 17:35:44 [debug] 9531#0: worker cycle
+2012/10/29 17:35:44 [debug] 9531#0: epoll timer: 10000
+2012/10/29 17:35:44 [debug] 9531#0: epoll: fd:8 ev:0001 d:088BD318
+2012/10/29 17:35:44 [debug] 9531#0: *1 tcp run session: "088B6AB8"
+2012/10/29 17:35:44 [debug] 9531#0: *1 tcp lua init and load src
+redis2 *** XXX cache key: [nhli_264a3b8da21cb14e226020588440f42b] at ./addons/ngx-tcp-lua-module/src/ngx_tcp_lua_cache.c line 196.
+redis2 *** clear out package.loaded.* on the Lua land at ./addons/ngx-tcp-lua-module/src/ngx_tcp_lua_cache.c line 59.
+redis2 *** clearing package _G at ./addons/ngx-tcp-lua-module/src/ngx_tcp_lua_cache.c line 172.
+redis2 *** Code cache missed! cache key='nhli_264a3b8da21cb14e226020588440f42b', stack top=0, script='
+            sock = ngx.req.socket()
+            local re = sock:receive()
+            if re == nil then
+                ngx.print("error")
+            end
+            ngx.print(re)
+        ' at ./addons/ngx-tcp-lua-module/src/ngx_tcp_lua_cache.c line 214.
+****** content by chunk at ./addons/ngx-tcp-lua-module/src/ngx_tcp_lua_module.c line 546.
+****** setting new ctx, ctx = 0x88b6b1c at ./addons/ngx-tcp-lua-module/src/ngx_tcp_lua_module.c line 556.
+2012/10/29 17:35:44 [debug] 9531#0: *1 lua creating new thread
+2012/10/29 17:35:44 [debug] 9531#0: *1 tcp cleanup add: 088B6B38
+2012/10/29 17:35:44 [debug] 9531#0: *1 lua run thread
+****** ctx = 0x88b6b1c at ./addons/ngx-tcp-lua-module/src/ngx_tcp_lua_util.c line 349.
+****** calling lua_resume: vm 0x88c0810, nret 0 at ./addons/ngx-tcp-lua-module/src/ngx_tcp_lua_util.c line 359.
+2012/10/29 17:35:44 [debug] 9531#0: *1 tcp cleanup add: 088B6B44
+2012/10/29 17:35:44 [debug] 9531#0: *1 event timer del: 8: 2883623089
+2012/10/29 17:35:44 [debug] 9531#0: *1 lua socket calling receive() method
+2012/10/29 17:35:44 [debug] 9531#0: *1 lua socket read timeout: 60000
+2012/10/29 17:35:44 [debug] 9531#0: *1 posix_memalign: 088CB1C0:256 @16
+2012/10/29 17:35:44 [debug] 9531#0: *1 lua allocate new chainlink and new buf of size 4096, cl:088CB1D0
+2012/10/29 17:35:44 [debug] 9531#0: *1 malloc: 088CB2C8:4096
+****** buf start: 0x88cb2c8 at ./addons/ngx-tcp-lua-module/src/ngx_tcp_lua_util.c line 602.
+redis2 *** tcp receive: buf_in: 0x88cb1d0, bufs_in: 0x88cb1d0 at ./addons/ngx-tcp-lua-module/src/ngx_tcp_lua_socket.c line 340.
+2012/10/29 17:35:44 [debug] 9531#0: *1 lua socket read data: waiting: 0
+2012/10/29 17:35:44 [debug] 9531#0: *1 lua socket try to recv data 088B6AB8
+2012/10/29 17:35:44 [debug] 9531#0: *1 recv: fd:8 122 of 4096
+redis2 *** read event ready: 1 at ./addons/ngx-tcp-lua-module/src/ngx_tcp_lua_socket.c line 623.
+2012/10/29 17:35:44 [debug] 9531#0: *1 lua socket recv returned 122: "088B6AB8"
+2012/10/29 17:35:44 [debug] 9531#0: *1 lua socket read line
+redis2 *** already read: 0x88cb1d0:  at ./addons/ngx-tcp-lua-module/src/ngx_tcp_lua_socket.c line 481.
+redis2 *** data read: fooooooo / HTTP/1.1
+TE: deflate,gzip;q=0.3
+Connection: TE, close
+Host: localhost:1980
+User-Agent: Test::Nginx::LWP
+
+ at ./addons/ngx-tcp-lua-module/src/ngx_tcp_lua_socket.c line 483.
+2012/10/29 17:35:44 [debug] 9531#0: *1 lua socket read the final line part: "fooooooo / HTTP/1.1"
+redis2 *** read a line: 0x88cb1d0: fooooooo / HTTP/1.1 at ./addons/ngx-tcp-lua-module/src/ngx_tcp_lua_socket.c line 501.
+2012/10/29 17:35:44 [debug] 9531#0: *1 lua socket receive done: wait:0, eof:0, uri:"088B6AB8"
+2012/10/29 17:35:44 [debug] 9531#0: *1 lua socket receive done in a single run
+2012/10/29 17:35:44 [debug] 9531#0: *1 lua socket receive return value handler
+redis2 *** bufs_in: 0x88cb1d0, buf_in: 0x88cb1d0 at ./addons/ngx-tcp-lua-module/src/ngx_tcp_lua_socket.c line 1119.
+redis2 *** size: 19, nbufs: 1 at ./addons/ngx-tcp-lua-module/src/ngx_tcp_lua_socket.c line 1136.
+redis2 *** copying input data chunk from 0x88cb1d0: "fooooooo / HTTP/1.1" at ./addons/ngx-tcp-lua-module/src/ngx_tcp_lua_socket.c line 1149.
+redis2 *** calling lua print at ./addons/ngx-tcp-lua-module/src/ngx_tcp_lua_output.c line 12.
+2012/10/29 17:35:44 [debug] 9531#0: *1 lua print response
+2012/10/29 17:35:44 [debug] 9531#0: *1 writev: 19
+2012/10/29 17:35:44 [debug] 9531#0: *1 tcp_lua write chain 00000000
+2012/10/29 17:35:44 [debug] 9531#0: *1 lua resume returned 0
+2012/10/29 17:35:44 [debug] 9531#0: *1 lua thread ended normally
+2012/10/29 17:35:44 [debug] 9531#0: *1 lua deleting thread
+2012/10/29 17:35:44 [debug] 9531#0: *1 close tcp session: 8
+2012/10/29 17:35:44 [debug] 9531#0: *1 cleanup lua socket downstream request: "088B6AB8"
+2012/10/29 17:35:44 [debug] 9531#0: *1 lua request cleanup
+2012/10/29 17:35:44 [debug] 9531#0: *1 close tcp connection: 8
+2012/10/29 17:35:44 [debug] 9531#0: *1 reusable connection: 0
+2012/10/29 17:35:44 [debug] 9531#0: *1 free: 088CB2C8
+2012/10/29 17:35:44 [debug] 9531#0: *1 free: 088B6A50, unused: 0
+2012/10/29 17:35:44 [debug] 9531#0: *1 free: 088CB1C0, unused: 92
+2012/10/29 17:35:44 [debug] 9531#0: timer delta: 33
+2012/10/29 17:35:44 [debug] 9531#0: posted events 00000000
+2012/10/29 17:35:44 [debug] 9531#0: worker cycle
+2012/10/29 17:35:44 [debug] 9531#0: epoll timer: -1
+2012/10/29 17:35:44 [notice] 9531#0: signal 3 (SIGQUIT) received, shutting down
+2012/10/29 17:35:44 [info] 9531#0: epoll_wait() failed (4: Interrupted system call)
+2012/10/29 17:35:44 [debug] 9531#0: timer delta: 3
+2012/10/29 17:35:44 [debug] 9531#0: posted events 00000000
+2012/10/29 17:35:44 [debug] 9531#0: flush files
+2012/10/29 17:35:44 [notice] 9531#0: exit
+2012/10/29 17:35:44 [debug] 9531#0: epoll del event: fd:6 op:2 ev:00000000
+2012/10/29 17:35:44 [debug] 9531#0: close listening 0.0.0.0:1980 #6 
+2012/10/29 17:35:44 [debug] 9531#0: epoll del event: fd:7 op:2 ev:00000000
+2012/10/29 17:35:44 [debug] 9531#0: close listening 0.0.0.0:1984 #7 
+2012/10/29 17:35:44 [debug] 9531#0: run cleanup: 088C87D0
+2012/10/29 17:35:44 [debug] 9531#0: cleanup resolver
+2012/10/29 17:35:44 [debug] 9531#0: run cleanup: 088B8CB8
+redis2 *** upstream destroy triggered by Lua GC at ./addons/ngx-tcp-lua-module/src/ngx_tcp_lua_socket.c line 1026.
+2012/10/29 17:35:44 [debug] 9531#0: free: 088B7A20, unused: 2
+2012/10/29 17:35:44 [debug] 9531#0: free: 088C6E70, unused: 1952

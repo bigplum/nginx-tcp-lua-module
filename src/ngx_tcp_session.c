@@ -3,6 +3,7 @@
 #include <ngx_core.h>
 #include <ngx_event.h>
 #include "ngx_tcp.h"
+#include "ngx_tcp_lua_common.h"
 
 
 static void ngx_tcp_init_session(ngx_event_t *rev);
@@ -385,6 +386,7 @@ ngx_tcp_process_session(ngx_event_t *rev)
     }
 
     if (cscf->protocol == NULL || cscf->protocol->init_session == NULL) {
+        dd("protocol not initialized");
         ngx_tcp_finalize_session(s);
         return;
     }
@@ -624,7 +626,7 @@ ngx_tcp_session_handler(ngx_event_t *ev)
     ctx->session = s;
 
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, c->log, 0,
-                   "http run request: \"%p\"", s);
+                   "tcp run session: \"%p\"", s);
 
     if (ev->write) {
         s->write_event_handler(s);

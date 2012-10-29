@@ -16,6 +16,7 @@ char *ngx_tcp_lua_package_cpath(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 char *ngx_tcp_lua_package_path(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static char *ngx_tcp_lua_process_by_lua_file(ngx_conf_t *cf, 
             ngx_command_t *cmd, void *conf);
+char * ngx_tcp_lua_process_by_lua(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static ngx_int_t ngx_tcp_lua_init(ngx_conf_t *cf);
 char *ngx_tcp_lua_init_vm(ngx_conf_t *cf, ngx_tcp_lua_main_conf_t *lmcf);
 static void ngx_tcp_lua_cleanup_vm(void *data);
@@ -63,9 +64,15 @@ static ngx_command_t  ngx_tcp_lua_commands[] = {
       NGX_TCP_MAIN_CONF|NGX_TCP_SRV_CONF|NGX_CONF_TAKE1,
       ngx_tcp_lua_process_by_lua_file,
       NGX_TCP_SRV_CONF_OFFSET,
-      offsetof(ngx_tcp_lua_srv_conf_t, lua_file),
+      offsetof(ngx_tcp_lua_srv_conf_t, lua_src),
       NULL },
 
+    { ngx_string("process_by_lua"),
+      NGX_TCP_MAIN_CONF|NGX_TCP_SRV_CONF|NGX_CONF_TAKE1,
+      ngx_tcp_lua_process_by_lua,
+      NGX_TCP_SRV_CONF_OFFSET,
+      offsetof(ngx_tcp_lua_srv_conf_t, lua_src),
+      NULL },
     ngx_null_command
 };
 
@@ -111,47 +118,68 @@ ngx_tcp_lua_init_session(ngx_tcp_session_t *s)
 
     c = s->connection;
 
-    ngx_log_debug0(NGX_LOG_DEBUG_EVENT, c->log, 0, "tcp lua init");
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, c->log, 0, "tcp lua init and load src");
 
     lscf = ngx_tcp_get_module_srv_conf(s, ngx_tcp_lua_module);
-
-    script_path = ngx_tcp_lua_rebase_path(s->pool, lscf->lua_file.data,
-            lscf->lua_file.len);
-
-    if (script_path == NULL) {
-        return;
-    }
-
     lmcf = ngx_tcp_get_module_main_conf(s, ngx_tcp_lua_module);    
     L = lmcf->lua;
 
-    /*  load Lua script file (w/ cache)        sp = 1 */
-    rc = ngx_tcp_lua_cache_loadfile(L, script_path, 0,
-            &err, 0);
-
-    if (rc != NGX_OK) {
-        if (err == NULL) {
-            err = "unknown error";
+    if (lscf->lua_src_inline) {
+        /*  load Lua inline script (w/ cache) sp = 1 */
+        rc = ngx_tcp_lua_cache_loadbuffer(L, lscf->lua_src.data,
+                lscf->lua_src.len, lscf->lua_src_key,
+                "process_by_lua", &err, 0);  //todo: llcf->enable_code_cache ? 1 : 
+        
+        if (rc != NGX_OK) {
+            if (err == NULL) {
+                err = "unknown error";
+            }
+        
+            ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
+                          "failed to load Lua inlined code: %s", err);
+        
+            return;
         }
+    } else {
+        /*  load Lua script file (w/ cache)        sp = 1 */
+        script_path = ngx_tcp_lua_rebase_path(s->pool, lscf->lua_src.data,
+                lscf->lua_src.len);
+        
+        if (script_path == NULL) {
+            return;
+        }
+        
+        rc = ngx_tcp_lua_cache_loadfile(L, script_path, 0,
+                &err, 0);
 
-        ngx_log_error(NGX_LOG_ERR, c->log, 0,
-                      "failed to load Lua inlined code: %s", err);
+        if (rc != NGX_OK) {
+            if (err == NULL) {
+                err = "unknown error";
+            }
 
-        return;
+            ngx_log_error(NGX_LOG_ERR, c->log, 0,
+                          "failed to load Lua code: %s", err);
+
+            return;
+        }
     }
-
+    
     /*  make sure we have a valid code chunk */
     assert(lua_isfunction(L, -1));
 
     s->write_event_handler= ngx_tcp_lua_dummy_write_handler;
     s->read_event_handler= ngx_tcp_lua_dummy_read_handler;
     
-    ngx_tcp_lua_process_by_chunk(L, s);
-
+    rc = ngx_tcp_lua_process_by_chunk(L, s);
+    
+    if (rc == NGX_DONE || rc == NGX_OK) {
+        ngx_tcp_finalize_session(s);
+        return;
+    }
 }
 
 /*
-    ngx_log_debug0(NGX_LOG_DEBUG_EVENT, c->log, 0, "tcp lua init session");
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, c->log, 0, "tcp lua init session");
 
     if (rev->timedout) {
         ngx_log_error(NGX_LOG_INFO, c->log, NGX_ETIMEDOUT, "client timed out");
@@ -217,7 +245,7 @@ ngx_tcp_lua_dummy_write_handler(ngx_tcp_session_t *s)
     c = s->connection;
     wev = c->write;
 
-    ngx_log_debug1(NGX_LOG_DEBUG_EVENT, wev->log, 0,
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, wev->log, 0,
                    "tcp lua dummy write handler: %d", c->fd);
 
     if (ngx_handle_write_event(wev, 0) != NGX_OK) {
@@ -235,7 +263,7 @@ ngx_tcp_lua_dummy_read_handler(ngx_tcp_session_t *s)
     c = s->connection;
     rev = c->write;
 
-    ngx_log_debug1(NGX_LOG_DEBUG_EVENT, rev->log, 0,
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, rev->log, 0,
                    "tcp lua dummy read handler: %d", c->fd);
 
     if (ngx_handle_read_event(rev, 0) != NGX_OK) {
@@ -283,6 +311,8 @@ ngx_tcp_lua_create_srv_conf(ngx_conf_t *cf)
     lscf->send_timeout = 60000;
     lscf->connect_timeout = 60000;
 
+    lscf->lua_src_inline = 0;
+    
     return lscf;
 }
 
@@ -362,6 +392,51 @@ ngx_tcp_lua_process_by_lua_file(ngx_conf_t *cf,
 
     *field = value[1];
 
+    return NGX_CONF_OK;
+}
+
+
+char *
+ngx_tcp_lua_process_by_lua(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    u_char                      *p;
+    ngx_str_t                   *value;
+    ngx_tcp_lua_srv_conf_t     *lscf = conf;
+    ngx_tcp_core_srv_conf_t    *cscf;
+
+    cscf = ngx_tcp_conf_get_module_srv_conf(cf, ngx_tcp_core_module);
+    if (cscf->protocol == NULL) {
+        cscf->protocol = &ngx_tcp_lua_protocol;
+    }
+
+    dd("enter");
+
+    value = cf->args->elts;
+
+    if (value[1].len == 0) {
+        /*  Oops...Invalid location conf */
+        ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
+                "Invalid location config: no runnable Lua code");
+        return NGX_CONF_ERROR;
+    }
+    
+    lscf->lua_src = value[1];
+
+    /* Don't eval nginx variables for inline lua code */
+
+    p = ngx_palloc(cf->pool, NGX_TCP_LUA_INLINE_KEY_LEN + 1);
+    if (p == NULL) {
+        return NGX_CONF_ERROR;
+    }
+
+    lscf->lua_src_key = p;
+
+    p = ngx_copy(p, NGX_TCP_LUA_INLINE_TAG, NGX_TCP_LUA_INLINE_TAG_LEN);
+    p = ngx_tcp_lua_digest_hex(p, value[1].data, value[1].len);
+    *p = '\0';
+
+    lscf->lua_src_inline = 1;
+    
     return NGX_CONF_OK;
 }
 

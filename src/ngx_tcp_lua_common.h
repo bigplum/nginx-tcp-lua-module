@@ -11,6 +11,21 @@
 
 #include "ngx_tcp.h"
 
+#ifndef MD5_DIGEST_LENGTH
+#define MD5_DIGEST_LENGTH 16
+#endif
+
+/* Nginx TCP Lua Inline tag prefix */
+
+#define NGX_TCP_LUA_INLINE_TAG "nhli_"
+
+#define NGX_TCP_LUA_INLINE_TAG_LEN \
+    (sizeof(NGX_TCP_LUA_INLINE_TAG) - 1)
+
+#define NGX_TCP_LUA_INLINE_KEY_LEN \
+    (NGX_TCP_LUA_INLINE_TAG_LEN + 2 * MD5_DIGEST_LENGTH)
+
+
 typedef struct ngx_tcp_lua_main_conf_s {
     lua_State       *lua;
 
@@ -22,12 +37,15 @@ typedef struct ngx_tcp_lua_main_conf_s {
 
 
 typedef struct ngx_tcp_lua_srv_conf_s {
-    ngx_str_t                 lua_file;
-    size_t                    buffer_size;
+    ngx_str_t                    lua_src;
+    u_char                      *lua_src_key;
+    size_t                       buffer_size;
 
     ngx_msec_t                       read_timeout;
     ngx_msec_t                       send_timeout;
     ngx_msec_t                       connect_timeout;
+    
+    unsigned                    lua_src_inline:1;
 } ngx_tcp_lua_srv_conf_t;
 
 
@@ -60,7 +78,7 @@ typedef struct ngx_tcp_lua_ctx_s {
 
 #   if (NGX_HAVE_VARIADIC_MACROS)
 
-#       define dd(...) fprintf(stderr, "redis2 *** "); \
+#       define dd(...) fprintf(stderr, "****** "); \
             fprintf(stderr, __VA_ARGS__); \
             fprintf(stderr, " at %s line %d.\n", __FILE__, __LINE__)
 

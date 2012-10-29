@@ -39,5 +39,6 @@ ngx_int_t ngx_tcp_lua_run_thread(lua_State *L, ngx_tcp_session_t *s,
 void ngx_tcp_lua_wev_handler(ngx_tcp_session_t *s);
 ngx_chain_t *ngx_tcp_lua_chains_get_free_buf(ngx_log_t *log, ngx_pool_t *p,
     ngx_chain_t **free, size_t len, ngx_buf_tag_t tag);
+u_char *ngx_tcp_lua_digest_hex(u_char *dest, const u_char *buf, int buf_len);
 
 #endif

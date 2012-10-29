@@ -13,7 +13,7 @@ ngx_tcp_lua_cache_loadfile(lua_State *L, const u_char *script,
 {
     int              rc;
 
-    //u_char           buf[NGX_HTTP_LUA_FILE_KEY_LEN + 1];
+    //u_char           buf[NGX_TCP_LUA_FILE_KEY_LEN + 1];
     //u_char          *p;
 
 
@@ -183,5 +183,73 @@ done:
 
     lua_newtable(L);
     lua_setglobal(L, "_G");
+}
+
+
+ngx_int_t
+ngx_tcp_lua_cache_loadbuffer(lua_State *L, const u_char *src, size_t src_len,
+        const u_char *cache_key, const char *name, char **err,
+        unsigned enabled)
+{
+    int          rc;
+
+    dd("XXX cache key: [%s]", cache_key);
+
+    if (!enabled) {
+        ngx_tcp_lua_clear_package_loaded(L);
+    }
+/*
+    if (ngx_tcp_lua_cache_load_code(L, (char *) cache_key)
+            == NGX_OK)
+    {
+        */
+        /*  code chunk loaded from cache, sp++ */
+        /*
+        dd("Code cache hit! cache key='%s', stack top=%d, script='%.*s'",
+                cache_key, lua_gettop(L), (int) src_len, src);
+        return NGX_OK;
+    }
+*/
+    dd("Code cache missed! cache key='%s', stack top=%d, script='%.*s'",
+            cache_key, lua_gettop(L), (int) src_len, src);
+
+    /*  load closure factory of inline script to the top of lua stack, sp++ */
+    rc = ngx_tcp_lua_clfactory_loadbuffer(L, (char *) src, src_len, name);
+
+    if (rc != 0) {
+        /*  Oops! error occured when loading Lua script */
+        if (rc == LUA_ERRMEM) {
+            *err = "memory allocation error";
+
+        } else {
+            if (lua_isstring(L, -1)) {
+                *err = (char *) lua_tostring(L, -1);
+            } else {
+                *err = "syntax error";
+            }
+        }
+
+        return NGX_ERROR;
+    }
+
+    /*  store closure factory and gen new closure at the top of lua stack to
+     *  code cache */
+        /*
+    rc = ngx_tcp_lua_cache_store_code(L, (char *) cache_key);
+
+    if (rc != NGX_OK) {
+        *err = "fail to generate new closure from the closure factory";
+        return NGX_ERROR;
+    }
+*/
+
+    /*  call closure factory to generate new closure */
+    rc = lua_pcall(L, 0, 1, 0);
+    if (rc != 0) {
+        dd("Error: failed to call closure factory!!");
+        return NGX_ERROR;
+    }
+    
+    return NGX_OK;
 }
 
