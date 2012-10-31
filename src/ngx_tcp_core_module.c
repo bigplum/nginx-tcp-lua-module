@@ -236,7 +236,7 @@ ngx_tcp_core_create_srv_conf(ngx_conf_t *cf)
     cscf->so_keepalive = NGX_CONF_UNSET;
     cscf->tcp_nodelay = NGX_CONF_UNSET;
 
-    cscf->resolver = NGX_CONF_UNSET_PTR;
+    //cscf->resolver = NGX_CONF_UNSET_PTR;
 
     cscf->file_name = cf->conf_file->file.name.data;
     cscf->line = cf->conf_file->line;
@@ -295,8 +295,21 @@ ngx_tcp_core_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
             }
         }
     }
+    
+    if (conf->resolver == NULL) {
 
-    ngx_conf_merge_ptr_value(conf->resolver, prev->resolver, NULL);
+        if (prev->resolver == NULL) {
+
+            prev->resolver = ngx_resolver_create(cf, NULL, 0);
+            if (prev->resolver == NULL) {
+                return NGX_CONF_ERROR;
+            }
+        }
+
+        conf->resolver = prev->resolver;
+    }
+
+    //ngx_conf_merge_ptr_value(conf->resolver, prev->resolver, NULL);
 
     if (conf->rules == NULL) {
         conf->rules = prev->rules;

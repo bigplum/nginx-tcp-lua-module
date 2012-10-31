@@ -13,7 +13,7 @@ tcp {
     server {
         listen 1980;
         process_by_lua '
-            sock = ngx.req.socket()
+            local sock = ngx.req.socket()
             local re = sock:receive()
             if re == nil then
                 ngx.print("error")
@@ -33,7 +33,7 @@ tcp {
     server {
         listen 1980;
         process_by_lua '
-            sock = ngx.req.socket()
+            local sock = ngx.req.socket()
             local re = sock:receive(10)
             if re == nil then
                 ngx.print("error")
@@ -53,7 +53,7 @@ tcp {
     server {
         listen 1980;
         process_by_lua '
-            sock = ngx.req.socket()
+            local sock = ngx.req.socket()
             local re = sock:receive("*l")
             if re == nil then
                 ngx.print("error")
