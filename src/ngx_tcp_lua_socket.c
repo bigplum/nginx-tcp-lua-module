@@ -1601,12 +1601,12 @@ ngx_tcp_lua_socket_finalize(ngx_tcp_session_t *r,
         u->peer.connection = NULL;
         return;
     }
-/*
+
     if (u->resolved && u->resolved->ctx) {
         ngx_resolve_name_done(u->resolved->ctx);
         u->resolved->ctx = NULL;
     }
-*/
+
     if (u->peer.free) {
         u->peer.free(&u->peer, u->peer.data, 0);
     }
