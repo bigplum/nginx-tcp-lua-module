@@ -81,12 +81,18 @@ struct ngx_tcp_lua_socket_upstream_s {
     ngx_uint_t                       ft_type;
     ngx_err_t                        socket_errno;
 
+    ngx_output_chain_ctx_t           output;
     ngx_chain_writer_ctx_t           writer;
     
     ngx_int_t                      (*input_filter)(void *data, ssize_t bytes);
     void                            *input_filter_ctx;
-    
+
+    size_t                           request_len;
+    ngx_chain_t                     *request_bufs;
+
     ngx_uint_t                       reused;
+
+    unsigned                         request_sent:1;
 
     unsigned                         waiting:1;
     unsigned                         eof:1;

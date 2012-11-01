@@ -1,8 +1,10 @@
 
 #include "ngx_tcp_lua_common.h"
 #include "ngx_tcp_lua_util.h"
+#include "ngx_tcp_lua_output.h"
 
 
+static int ngx_tcp_lua_ngx_print(lua_State *L);
 static int ngx_tcp_lua_ngx_echo(lua_State *L, unsigned newline);
 
 
@@ -11,6 +13,14 @@ ngx_tcp_lua_ngx_print(lua_State *L)
 {
     dd("calling lua print");
     return ngx_tcp_lua_ngx_echo(L, 0);
+}
+
+
+static int
+ngx_tcp_lua_ngx_say(lua_State *L)
+{
+    dd("calling");
+    return ngx_tcp_lua_ngx_echo(L, 1);
 }
 
 
@@ -82,9 +92,8 @@ ngx_tcp_lua_ngx_echo(lua_State *L, unsigned newline)
                 break;
 
             case LUA_TTABLE:
-//todo
-                //size += ngx_tcp_lua_calc_strlen_in_table(L, i, i,
-                //                                          0 /* strict */);
+
+                size += ngx_tcp_lua_calc_strlen_in_table(L, i, 0);
                 break;
 
             case LUA_TLIGHTUSERDATA:
@@ -174,9 +183,11 @@ ngx_tcp_lua_ngx_echo(lua_State *L, unsigned newline)
         *b->last++ = '\n';
     }
 
+#if 0
     if (b->last != b->end) {
         return luaL_error(L, "buffer error: %p != %p", b->last, b->end);
     }
+#endif
 
     cl = ngx_alloc_chain_link(s->pool);
     if (cl == NULL) {
@@ -201,10 +212,196 @@ ngx_tcp_lua_ngx_echo(lua_State *L, unsigned newline)
 void
 ngx_tcp_lua_inject_output_api(lua_State *L)
 {
+    lua_pushcfunction(L, ngx_tcp_lua_ngx_say);
+    lua_setfield(L, -2, "say");
 
     lua_pushcfunction(L, ngx_tcp_lua_ngx_print);
     lua_setfield(L, -2, "print");
 
+}
+
+
+size_t
+ngx_tcp_lua_calc_strlen_in_table(lua_State *L, int arg_i, unsigned strict)
+{
+    double              key;
+    int                 max;
+    int                 i;
+    int                 type;
+    size_t              size;
+    size_t              len;
+    const char         *msg;
+
+    max = 0;
+
+    lua_pushnil(L); /* stack: table key */
+    while (lua_next(L, -2) != 0) { /* stack: table key value */
+        if (lua_type(L, -2) == LUA_TNUMBER && (key = lua_tonumber(L, -2))) {
+            if (floor(key) == key && key >= 1) {
+                if (key > max) {
+                    max = key;
+                }
+
+                lua_pop(L, 1); /* stack: table key */
+                continue;
+            }
+        }
+
+        /* not an array (non positive integer key) */
+        lua_pop(L, 2); /* stack: table */
+
+        msg = lua_pushfstring(L, "non-array table found");
+        luaL_argerror(L, arg_i, msg);
+        return 0;
+    }
+
+    size = 0;
+
+    for (i = 1; i <= max; i++) {
+        lua_rawgeti(L, -1, i); /* stack: table value */
+        type = lua_type(L, -1);
+
+        switch (type) {
+            case LUA_TNUMBER:
+            case LUA_TSTRING:
+
+                lua_tolstring(L, -1, &len);
+                size += len;
+                break;
+
+            case LUA_TNIL:
+
+                if (strict) {
+                    goto bad_type;
+                }
+
+                size += sizeof("nil") - 1;
+                break;
+
+            case LUA_TBOOLEAN:
+
+                if (strict) {
+                    goto bad_type;
+                }
+
+                if (lua_toboolean(L, -1)) {
+                    size += sizeof("true") - 1;
+
+                } else {
+                    size += sizeof("false") - 1;
+                }
+
+                break;
+
+            case LUA_TTABLE:
+
+                size += ngx_tcp_lua_calc_strlen_in_table(L, arg_i, strict);
+                break;
+
+            case LUA_TLIGHTUSERDATA:
+
+                if (strict) {
+                    goto bad_type;
+                }
+
+                if (lua_touserdata(L, -1) == NULL) {
+                    size += sizeof("null") - 1;
+                    break;
+                }
+
+                continue;
+
+            default:
+
+bad_type:
+                msg = lua_pushfstring(L, "bad data type %s found",
+                        lua_typename(L, type));
+                return luaL_argerror(L, arg_i, msg);
+        }
+
+        lua_pop(L, 1); /* stack: table */
+    }
+
+    return size;
+}
+
+
+u_char *
+ngx_tcp_lua_copy_str_in_table(lua_State *L, u_char *dst)
+{
+    double               key;
+    int                  max;
+    int                  i;
+    int                  type;
+    size_t               len;
+    u_char              *p;
+
+    max = 0;
+
+    lua_pushnil(L); /* stack: table key */
+    while (lua_next(L, -2) != 0) { /* stack: table key value */
+        key = lua_tonumber(L, -2);
+        if (key > max) {
+            max = key;
+        }
+
+        lua_pop(L, 1); /* stack: table key */
+    }
+
+    for (i = 1; i <= max; i++) {
+        lua_rawgeti(L, -1, i); /* stack: table value */
+        type = lua_type(L, -1);
+        switch (type) {
+            case LUA_TNUMBER:
+            case LUA_TSTRING:
+                p = (u_char *) lua_tolstring(L, -1, &len);
+                dst = ngx_copy(dst, p, len);
+                break;
+
+            case LUA_TNIL:
+                *dst++ = 'n';
+                *dst++ = 'i';
+                *dst++ = 'l';
+                break;
+
+            case LUA_TBOOLEAN:
+                if (lua_toboolean(L, -1)) {
+                    *dst++ = 't';
+                    *dst++ = 'r';
+                    *dst++ = 'u';
+                    *dst++ = 'e';
+
+                } else {
+                    *dst++ = 'f';
+                    *dst++ = 'a';
+                    *dst++ = 'l';
+                    *dst++ = 's';
+                    *dst++ = 'e';
+                }
+
+                break;
+
+            case LUA_TTABLE:
+                dst = ngx_tcp_lua_copy_str_in_table(L, dst);
+                break;
+
+            case LUA_TLIGHTUSERDATA:
+
+                *dst++ = 'n';
+                *dst++ = 'u';
+                *dst++ = 'l';
+                *dst++ = 'l';
+                break;
+
+            default:
+                luaL_error(L, "impossible to reach here");
+                return NULL;
+        }
+
+        lua_pop(L, 1); /* stack: table */
+    }
+
+    return dst;
 }
 
 

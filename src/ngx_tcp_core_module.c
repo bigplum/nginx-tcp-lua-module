@@ -131,6 +131,20 @@ static ngx_command_t  ngx_tcp_core_commands[] = {
       0,
       NULL },
 
+    { ngx_string("directio_alignment"),
+      NGX_TCP_MAIN_CONF|NGX_TCP_SRV_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_off_slot,
+      NGX_TCP_SRV_CONF_OFFSET,
+      offsetof(ngx_tcp_core_srv_conf_t, directio_alignment),
+      NULL },
+
+    { ngx_string("client_body_buffer_size"),
+      NGX_TCP_MAIN_CONF|NGX_TCP_SRV_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_size_slot,
+      NGX_TCP_SRV_CONF_OFFSET,
+      offsetof(ngx_tcp_core_srv_conf_t, client_body_buffer_size),
+      NULL },
+
     ngx_null_command
 };
 

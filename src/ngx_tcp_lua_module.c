@@ -38,14 +38,7 @@ static ngx_tcp_protocol_t  ngx_tcp_lua_protocol = {
 };
 
 static ngx_command_t  ngx_tcp_lua_commands[] = {
-/*
-    { ngx_string("process_by_lua"),
-      NGX_TCP_MAIN_CONF|NGX_TCP_SRV_CONF|NGX_CONF_TAKE1,
-      ngx_tcp_process_by_lua,
-      NGX_TCP_SRV_CONF_OFFSET,
-      0,
-      NULL },
-*/
+
     { ngx_string("tcp_lua_package_cpath"),
       NGX_TCP_MAIN_CONF|NGX_CONF_TAKE1,
       ngx_tcp_lua_package_cpath,
@@ -73,6 +66,9 @@ static ngx_command_t  ngx_tcp_lua_commands[] = {
       NGX_TCP_SRV_CONF_OFFSET,
       offsetof(ngx_tcp_lua_srv_conf_t, lua_src),
       NULL },
+
+//todo: timeout...
+      
     ngx_null_command
 };
 
@@ -305,11 +301,14 @@ ngx_tcp_lua_create_srv_conf(ngx_conf_t *cf)
         return NULL;
     }
 
+    lscf->send_lowat = NGX_CONF_UNSET_SIZE;
     lscf->buffer_size = NGX_CONF_UNSET_SIZE;
+    lscf->pool_size = NGX_CONF_UNSET_UINT;
 
-    lscf->read_timeout = 60000;
-    lscf->send_timeout = 60000;
-    lscf->connect_timeout = 60000;
+    lscf->keepalive_timeout = NGX_CONF_UNSET_UINT;
+    lscf->read_timeout = NGX_CONF_UNSET_UINT;
+    lscf->send_timeout = NGX_CONF_UNSET_UINT;
+    lscf->connect_timeout = NGX_CONF_UNSET_UINT;
 
     lscf->lua_src_inline = 0;
     
@@ -323,8 +322,30 @@ ngx_tcp_lua_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
     ngx_tcp_lua_srv_conf_t *prev = parent;
     ngx_tcp_lua_srv_conf_t *conf = child;
 
+    if (conf->lua_src.len == 0) {
+        conf->lua_src = prev->lua_src;
+        conf->lua_src_key = prev->lua_src_key;
+    }
+
+    ngx_conf_merge_size_value(conf->send_lowat,
+                              prev->send_lowat, 0);
+
     ngx_conf_merge_size_value(conf->buffer_size, prev->buffer_size,
                       (size_t) ngx_pagesize);
+                      
+    ngx_conf_merge_msec_value(conf->keepalive_timeout,
+                              prev->keepalive_timeout, 60000);
+
+    ngx_conf_merge_msec_value(conf->connect_timeout,
+                              prev->connect_timeout, 60000);
+
+    ngx_conf_merge_msec_value(conf->send_timeout,
+                              prev->send_timeout, 60000);
+
+    ngx_conf_merge_msec_value(conf->read_timeout,
+                              prev->read_timeout, 60000);
+                              
+    ngx_conf_merge_uint_value(conf->pool_size, prev->pool_size, 30);
 
     return NGX_CONF_OK;
 }

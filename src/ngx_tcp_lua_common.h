@@ -4,6 +4,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 
+#include <math.h>
 #include <assert.h>
 #include "lua.h"
 #include "lauxlib.h"
@@ -39,12 +40,17 @@ typedef struct ngx_tcp_lua_main_conf_s {
 typedef struct ngx_tcp_lua_srv_conf_s {
     ngx_str_t                    lua_src;
     u_char                      *lua_src_key;
-    size_t                       buffer_size;
+    
+    size_t                           send_lowat;
+    size_t                           buffer_size;
 
     ngx_msec_t                       read_timeout;
     ngx_msec_t                       send_timeout;
     ngx_msec_t                       connect_timeout;
+    ngx_msec_t                       keepalive_timeout;
     
+    ngx_uint_t                       pool_size;
+
     unsigned                    lua_src_inline:1;
 } ngx_tcp_lua_srv_conf_t;
 
@@ -63,6 +69,8 @@ typedef struct ngx_tcp_lua_ctx_s {
     int              ctx_ref;           /*  reference to anchor request ctx
                                             data in lua registry */
 
+    ngx_chain_t             *busy_bufs;
+    ngx_chain_t             *free_bufs;
     ngx_chain_t             *free_recv_bufs;
 
 
@@ -110,6 +118,7 @@ static void dd(const char* fmt, ...) {
 #   endif
 
 #endif
+
 
 /*  coroutine anchoring table key in Lua vm registry */
 #define NGX_LUA_CORT_REF "ngx_lua_cort_ref"
