@@ -24,6 +24,28 @@ typedef struct {
 
 } ngx_tcp_lua_socket_pool_t;
 
+
+typedef struct ngx_tcp_lua_dfa_edge_s ngx_tcp_lua_dfa_edge_t;
+
+
+struct ngx_tcp_lua_dfa_edge_s {
+    u_char                           chr;
+    int                              new_state;
+    ngx_tcp_lua_dfa_edge_t         *next;
+};
+
+
+typedef struct {
+    ngx_tcp_lua_socket_upstream_t      *upstream;
+
+    ngx_str_t                            pattern;
+    int                                  state;
+    ngx_tcp_lua_dfa_edge_t            **recovering;
+
+    unsigned                             inclusive:1;
+} ngx_tcp_lua_socket_compiled_pattern_t;
+
+
 typedef struct {
     ngx_tcp_lua_socket_pool_t      *socket_pool;
 

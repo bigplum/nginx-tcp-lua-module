@@ -46,14 +46,14 @@ static ngx_conf_post_t  ngx_tcp_lua_lowat_post =
 
 static ngx_command_t  ngx_tcp_lua_commands[] = {
 
-    { ngx_string("tcp_lua_package_cpath"),
+    { ngx_string("lua_package_cpath"),
       NGX_TCP_MAIN_CONF|NGX_CONF_TAKE1,
       ngx_tcp_lua_package_cpath,
       NGX_TCP_MAIN_CONF_OFFSET,
       0,
       NULL },
 
-    { ngx_string("tcp_lua_package_path"),
+    { ngx_string("lua_package_path"),
       NGX_TCP_MAIN_CONF|NGX_CONF_TAKE1,
       ngx_tcp_lua_package_path,
       NGX_TCP_MAIN_CONF_OFFSET,
