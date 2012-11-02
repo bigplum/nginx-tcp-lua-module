@@ -23,6 +23,8 @@ static void ngx_tcp_lua_cleanup_vm(void *data);
 u_char *ngx_tcp_lua_rebase_path(ngx_pool_t *pool, u_char *src, size_t len);
 ngx_int_t ngx_tcp_lua_process_by_chunk(lua_State *L, ngx_tcp_session_t *s);
 void ngx_tcp_lua_reset_ctx(ngx_tcp_session_t *r, lua_State *L, ngx_tcp_lua_ctx_t *ctx);
+static char *ngx_tcp_lua_lowat_check(ngx_conf_t *cf, void *post, void *data);
+char *ngx_tcp_lua_code_cache(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 
 
 static ngx_tcp_protocol_t  ngx_tcp_lua_protocol = {
@@ -36,6 +38,11 @@ static ngx_tcp_protocol_t  ngx_tcp_lua_protocol = {
     ngx_string("500 Internal server error" CRLF)
 
 };
+
+
+static ngx_conf_post_t  ngx_tcp_lua_lowat_post =
+    { ngx_tcp_lua_lowat_check };
+
 
 static ngx_command_t  ngx_tcp_lua_commands[] = {
 
@@ -53,6 +60,13 @@ static ngx_command_t  ngx_tcp_lua_commands[] = {
       0,
       NULL },
 
+    { ngx_string("lua_code_cache"),
+      NGX_TCP_MAIN_CONF|NGX_TCP_SRV_CONF|NGX_CONF_FLAG,
+      ngx_tcp_lua_code_cache,
+      NGX_TCP_SRV_CONF_OFFSET,
+      offsetof(ngx_tcp_lua_srv_conf_t, enable_code_cache),
+      NULL },
+
     { ngx_string("process_by_lua_file"),
       NGX_TCP_MAIN_CONF|NGX_TCP_SRV_CONF|NGX_CONF_TAKE1,
       ngx_tcp_lua_process_by_lua_file,
@@ -67,8 +81,54 @@ static ngx_command_t  ngx_tcp_lua_commands[] = {
       offsetof(ngx_tcp_lua_srv_conf_t, lua_src),
       NULL },
 
-//todo: timeout...
-      
+    { ngx_string("lua_socket_keepalive_timeout"),
+      NGX_TCP_MAIN_CONF|NGX_TCP_SRV_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_msec_slot,
+      NGX_TCP_SRV_CONF_OFFSET,
+      offsetof(ngx_tcp_lua_srv_conf_t, keepalive_timeout),
+      NULL },
+
+    { ngx_string("lua_socket_connect_timeout"),
+      NGX_TCP_MAIN_CONF|NGX_TCP_SRV_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_msec_slot,
+      NGX_TCP_SRV_CONF_OFFSET,
+      offsetof(ngx_tcp_lua_srv_conf_t, connect_timeout),
+      NULL },
+
+    { ngx_string("lua_socket_send_timeout"),
+      NGX_TCP_MAIN_CONF|NGX_TCP_SRV_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_msec_slot,
+      NGX_TCP_SRV_CONF_OFFSET,
+      offsetof(ngx_tcp_lua_srv_conf_t, send_timeout),
+      NULL },
+
+    { ngx_string("lua_socket_send_lowat"),
+      NGX_TCP_MAIN_CONF|NGX_TCP_SRV_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_size_slot,
+      NGX_TCP_SRV_CONF_OFFSET,
+      offsetof(ngx_tcp_lua_srv_conf_t, send_lowat),
+      &ngx_tcp_lua_lowat_post },
+
+    { ngx_string("lua_socket_buffer_size"),
+      NGX_TCP_MAIN_CONF|NGX_TCP_SRV_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_size_slot,
+      NGX_TCP_SRV_CONF_OFFSET,
+      offsetof(ngx_tcp_lua_srv_conf_t, buffer_size),
+      NULL },
+
+    { ngx_string("lua_socket_pool_size"),
+      NGX_TCP_MAIN_CONF|NGX_TCP_SRV_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_num_slot,
+      NGX_TCP_SRV_CONF_OFFSET,
+      offsetof(ngx_tcp_lua_srv_conf_t, pool_size),
+      NULL },
+
+    { ngx_string("lua_socket_read_timeout"),
+      NGX_TCP_MAIN_CONF|NGX_TCP_SRV_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_msec_slot,
+      NGX_TCP_SRV_CONF_OFFSET,
+      offsetof(ngx_tcp_lua_srv_conf_t, read_timeout),
+      NULL },      
     ngx_null_command
 };
 
@@ -124,7 +184,7 @@ ngx_tcp_lua_init_session(ngx_tcp_session_t *s)
         /*  load Lua inline script (w/ cache) sp = 1 */
         rc = ngx_tcp_lua_cache_loadbuffer(L, lscf->lua_src.data,
                 lscf->lua_src.len, lscf->lua_src_key,
-                "process_by_lua", &err, 0);  //todo: llcf->enable_code_cache ? 1 : 
+                "process_by_lua", &err, lscf->enable_code_cache ? 1 : 0); 
         
         if (rc != NGX_OK) {
             if (err == NULL) {
@@ -145,8 +205,8 @@ ngx_tcp_lua_init_session(ngx_tcp_session_t *s)
             return;
         }
         
-        rc = ngx_tcp_lua_cache_loadfile(L, script_path, 0,
-                &err, 0);
+        rc = ngx_tcp_lua_cache_loadfile(L, script_path, lscf->lua_src_key,
+                &err, lscf->enable_code_cache ? 1 : 0);
 
         if (rc != NGX_OK) {
             if (err == NULL) {
@@ -173,63 +233,6 @@ ngx_tcp_lua_init_session(ngx_tcp_session_t *s)
         return;
     }
 }
-
-/*
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, c->log, 0, "tcp lua init session");
-
-    if (rev->timedout) {
-        ngx_log_error(NGX_LOG_INFO, c->log, NGX_ETIMEDOUT, "client timed out");
-
-        ngx_tcp_finalize_session(s);
-        return;
-    }
-
-    cscf = ngx_tcp_get_module_srv_conf(s, ngx_tcp_core_module);
-
-    pcf = ngx_tcp_get_module_srv_conf(s, ngx_tcp_lua_module);
-
-    s->buffer = ngx_create_temp_buf(s->connection->pool, pcf->buffer_size);
-    if (s->buffer == NULL) {
-        ngx_tcp_finalize_session(s);
-        return;
-    }
-
-    if (rev->ready) {
-        n = c->recv(c, s->buffer->last, pcf->buffer_size);
-    } else {
-        n = NGX_AGAIN;
-    }
-    
-    if (n == NGX_AGAIN) {
-        if (!rev->timer_set) {
-            ngx_add_timer(rev, cscf->timeout);
-        }
-
-        if (ngx_handle_read_event(rev, 0) != NGX_OK) {
-            ngx_tcp_finalize_session(s);
-            return;
-        }
-
-        return;
-    }
-
-    c->send(c, s->buffer->start, n);
-    
-    s->out.len = 0;
-    
-    c->write->handler = ngx_tcp_lua_dummy_write_handler;
-    c->read->handler = ngx_tcp_lua_dummy_read_handler;
-    
-    ngx_add_timer(rev, cscf->timeout);
-
-
-    if (ngx_handle_read_event(rev, 0) != NGX_OK) {
-        ngx_tcp_finalize_session(s);
-        return;
-    }
-
-    return;
-*/
 
 
 static void
@@ -301,6 +304,8 @@ ngx_tcp_lua_create_srv_conf(ngx_conf_t *cf)
         return NULL;
     }
 
+    lscf->enable_code_cache = NGX_CONF_UNSET;
+
     lscf->send_lowat = NGX_CONF_UNSET_SIZE;
     lscf->buffer_size = NGX_CONF_UNSET_SIZE;
     lscf->pool_size = NGX_CONF_UNSET_UINT;
@@ -326,6 +331,8 @@ ngx_tcp_lua_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
         conf->lua_src = prev->lua_src;
         conf->lua_src_key = prev->lua_src_key;
     }
+    
+    ngx_conf_merge_value(conf->enable_code_cache, prev->enable_code_cache, 1);
 
     ngx_conf_merge_size_value(conf->send_lowat,
                               prev->send_lowat, 0);
@@ -429,8 +436,6 @@ ngx_tcp_lua_process_by_lua(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     if (cscf->protocol == NULL) {
         cscf->protocol = &ngx_tcp_lua_protocol;
     }
-
-    dd("enter");
 
     value = cf->args->elts;
 
@@ -641,6 +646,58 @@ ngx_tcp_lua_reset_ctx(ngx_tcp_session_t *r, lua_State *L,
     //ngx_tcp_lua_del_all_threads(r, L, ctx);
 
 
+}
+
+
+static char *
+ngx_tcp_lua_lowat_check(ngx_conf_t *cf, void *post, void *data)
+{
+#if (NGX_FREEBSD)
+    ssize_t *np = data;
+
+    if ((u_long) *np >= ngx_freebsd_net_inet_tcp_sendspace) {
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "\"fastcgi_send_lowat\" must be less than %d "
+                           "(sysctl net.inet.tcp.sendspace)",
+                           ngx_freebsd_net_inet_tcp_sendspace);
+
+        return NGX_CONF_ERROR;
+    }
+
+#elif !(NGX_HAVE_SO_SNDLOWAT)
+    ssize_t *np = data;
+
+    ngx_conf_log_error(NGX_LOG_WARN, cf, 0,
+                       "\"fastcgi_send_lowat\" is not supported, ignored");
+
+    *np = 0;
+
+#endif
+
+    return NGX_CONF_OK;
+}
+
+
+char *
+ngx_tcp_lua_code_cache(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    char             *p = conf;
+    ngx_flag_t       *fp;
+    char             *ret;
+
+    ret = ngx_conf_set_flag_slot(cf, cmd, conf);
+    if (ret != NGX_CONF_OK) {
+        return ret;
+    }
+
+    fp = (ngx_flag_t *) (p + cmd->offset);
+
+    if (!*fp) {
+        ngx_conf_log_error(NGX_LOG_WARN, cf, 0,
+                "lua_code_cache is off; this will hurt performance");
+    }
+
+    return NGX_CONF_OK;
 }
 
 

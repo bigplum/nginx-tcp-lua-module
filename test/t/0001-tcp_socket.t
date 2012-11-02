@@ -118,7 +118,7 @@ tcp {
                 ngx.say(re)
             end
 
-            local bytes, err = sock:send(req)
+            local bytes, err = sock:send(re)
             if not bytes then
                 ngx.say("failed to send request: ", err)
             end
@@ -207,7 +207,7 @@ tcp {
                 ngx.say(re)
             end
 
-            local bytes, err = sock:send(req)
+            local bytes, err = sock:send(re)
             if not bytes then
                 ngx.say("failed to send request: ", err)
             end
@@ -247,7 +247,7 @@ tcp {
                 ngx.say(re)
             end
 
-            local bytes, err = sock:send(req)
+            local bytes, err = sock:send(re)
             if not bytes then
                 ngx.say("failed to send request: ", err)
             end
@@ -267,5 +267,131 @@ failed to send request: closed
 request sent: nil
 nil
 
+=== TEST 8: connect timeout
+--- config 
+--- main_config 
+tcp {
+    server {
+        listen 1980;
+        resolver 8.8.8.8;
+        lua_socket_connect_timeout 1ms;
+        process_by_lua '
+            local sock = ngx.socket.tcp()
+            local req = ngx.req.socket()
+            local re = req:receive()
 
+            local rt,err = sock:connect("baidu.com",80)
+            if rt == nil then
+                ngx.say(err)
+            else
+                ngx.say(re)
+            end
+
+            local bytes, err = sock:send(re)
+            if not bytes then
+                ngx.say("failed to send request: ", err)
+            end
+
+            ngx.say("request sent: ", bytes)
+
+            rt, err = sock:close()
+            ngx.say(rt,err)
+        ';
+    }
+}
+--- raw_request
+foooooo
+--- raw_response
+timeout
+failed to send request: closed
+request sent: nil
+nilclosed
+
+=== TEST 9: read timeout
+--- config 
+--- main_config 
+tcp {
+    server {
+        listen 1980;
+        resolver 8.8.8.8;
+        lua_socket_send_timeout 1ms;
+        lua_socket_read_timeout 1ms;
+        process_by_lua '
+            local sock = ngx.socket.tcp()
+            local req = ngx.req.socket()
+            local re = req:receive()
+
+            local rt,err = sock:connect("baidu.com",80)
+            if rt == nil then
+                ngx.say(err)
+            end
+
+            local bytes, err = sock:send("GET / HTTP/1.1\\r\\n\\r\\n\\r\\n")
+            if not bytes then
+                ngx.say("failed to send request: ", err)
+            end
+
+            ngx.say("request sent: ", bytes)
+
+            rt,err = sock:receive()
+            if rt == nil then
+                ngx.say(err)
+            end
+            ngx.say(rt)
+
+            rt, err = sock:close()
+            ngx.say(rt,err)
+        ';
+    }
+}
+--- raw_request
+foo
+--- raw_response
+request sent: 20
+timeout
+nil
+nilclosed
+
+=== TEST 10: small buffer size
+--- config 
+--- main_config 
+tcp {
+    server {
+        listen 1980;
+        resolver 8.8.8.8;
+        lua_socket_buffer_size 1;
+        process_by_lua '
+            local sock = ngx.socket.tcp()
+            local req = ngx.req.socket()
+            local re = req:receive()
+
+            local rt,err = sock:connect("baidu.com",80)
+            if rt == nil then
+                ngx.say(err)
+            end
+
+            local bytes, err = sock:send("GET / HTTP/1.1\\r\\n\\r\\n\\r\\n")
+            if not bytes then
+                ngx.say("failed to send request: ", err)
+            end
+
+            ngx.say("request sent: ", bytes)
+
+            rt, err = sock:receive(8)
+            if rt == nil then
+                ngx.say(err)
+            end
+            ngx.say(rt)
+
+            rt, err = sock:close()
+            ngx.say(rt,err)
+        ';
+    }
+}
+--- raw_request
+foo
+--- raw_response
+request sent: 20
+HTTP/1.1
+1nil
 

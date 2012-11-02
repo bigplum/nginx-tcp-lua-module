@@ -79,6 +79,13 @@ ngx_tcp_lua_init_registry(ngx_conf_t *cf, lua_State *L)
     lua_newtable(L);
     lua_rawset(L, LUA_REGISTRYINDEX);
 
+    /* {{{ register table to cache user code:
+     * {([string]cache_key) = [code closure]} */
+    lua_pushlightuserdata(L, &ngx_tcp_lua_code_cache_key);
+    lua_newtable(L);
+    lua_rawset(L, LUA_REGISTRYINDEX);
+    /* }}} */
+
 }
 
 
