@@ -4,6 +4,7 @@
 #include "ngx_tcp_lua_output.h"
 #include "ngx_tcp_lua_socket.h"
 #include "ngx_tcp_lua_exception.h"
+#include "ngx_tcp_lua_log.h"
 
 
 char ngx_tcp_lua_code_cache_key;
@@ -24,6 +25,7 @@ static char ngx_tcp_lua_coroutines_key;
 
 void ngx_tcp_lua_create_new_global_table(lua_State *L, int narr, int nrec);
 static void ngx_tcp_lua_inject_ngx_api(ngx_conf_t *cf, lua_State *L);
+void ngx_tcp_lua_inject_core_consts(lua_State *L);
 
 
 static void
@@ -109,6 +111,10 @@ static void
 ngx_tcp_lua_inject_ngx_api(ngx_conf_t *cf, lua_State *L)
 {
     lua_createtable(L, 0 /* narr */, 89 /* nrec */);    /* ngx.* */
+
+    ngx_tcp_lua_inject_core_consts(L);
+
+    ngx_tcp_lua_inject_log_api(L);
 
     ngx_tcp_lua_inject_output_api(L);
     
@@ -626,6 +632,31 @@ ngx_tcp_lua_digest_hex(u_char *dest, const u_char *buf, int buf_len)
     ngx_md5_final(md5_buf, &md5);
 
     return ngx_hex_dump(dest, md5_buf, sizeof(md5_buf));
+}
+
+
+void
+ngx_tcp_lua_inject_core_consts(lua_State *L)
+{
+    /* {{{ core constants */
+    lua_pushinteger(L, NGX_OK);
+    lua_setfield(L, -2, "OK");
+
+    lua_pushinteger(L, NGX_AGAIN);
+    lua_setfield(L, -2, "AGAIN");
+
+    lua_pushinteger(L, NGX_DONE);
+    lua_setfield(L, -2, "DONE");
+
+    lua_pushinteger(L, NGX_DECLINED);
+    lua_setfield(L, -2, "DECLINED");
+
+    lua_pushinteger(L, NGX_ERROR);
+    lua_setfield(L, -2, "ERROR");
+
+    lua_pushlightuserdata(L, NULL);
+    lua_setfield(L, -2, "null");
+    /* }}} */
 }
 
 
