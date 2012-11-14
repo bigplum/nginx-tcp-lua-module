@@ -92,7 +92,7 @@ typedef struct ngx_tcp_lua_ctx_s {
     unsigned         socket_ready:1;
 } ngx_tcp_lua_ctx_t;
 
-#define DDEBUG 1
+#define DDEBUG 0
 
 #if defined(DDEBUG) && (DDEBUG)
 
