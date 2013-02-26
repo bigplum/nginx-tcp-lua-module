@@ -510,7 +510,7 @@ ngx_tcp_lua_wev_handler(ngx_tcp_session_t *s)
         return;
     }
 
-    if (rc == NGX_DONE || rc == NGX_OK) {
+    if (rc == NGX_DONE || rc == NGX_OK || rc==NGX_ERROR) {
         ngx_tcp_finalize_session(s);
         return;
     }

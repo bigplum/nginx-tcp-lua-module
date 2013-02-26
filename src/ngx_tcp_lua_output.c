@@ -5,14 +5,13 @@
 
 
 static int ngx_tcp_lua_ngx_print(lua_State *L);
-static int ngx_tcp_lua_ngx_echo(lua_State *L, unsigned newline);
 
 
 static int
 ngx_tcp_lua_ngx_print(lua_State *L)
 {
     dd("calling lua print");
-    return ngx_tcp_lua_ngx_echo(L, 0);
+    return ngx_tcp_lua_ngx_echo(L, 0,1);
 }
 
 
@@ -20,12 +19,12 @@ static int
 ngx_tcp_lua_ngx_say(lua_State *L)
 {
     dd("calling");
-    return ngx_tcp_lua_ngx_echo(L, 1);
+    return ngx_tcp_lua_ngx_echo(L, 1,1);
 }
 
 
-static int
-ngx_tcp_lua_ngx_echo(lua_State *L, unsigned newline)
+int
+ngx_tcp_lua_ngx_echo(lua_State *L, unsigned newline,unsigned start)
 {
     ngx_tcp_session_t          *s;
     ngx_tcp_lua_ctx_t          *ctx;
@@ -63,7 +62,7 @@ ngx_tcp_lua_ngx_echo(lua_State *L, unsigned newline)
     nargs = lua_gettop(L);
     size = 0;
 
-    for (i = 1; i <= nargs; i++) {
+    for (i = start; i <= nargs; i++) {
 
         type = lua_type(L, i);
 
@@ -131,7 +130,7 @@ ngx_tcp_lua_ngx_echo(lua_State *L, unsigned newline)
         return luaL_error(L, "out of memory");
     }
 
-    for (i = 1; i <= nargs; i++) {
+    for (i = start; i <= nargs; i++) {
         type = lua_type(L, i);
         switch (type) {
             case LUA_TNUMBER:

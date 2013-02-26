@@ -48,7 +48,6 @@ struct ngx_tcp_session_s {
 
 typedef void (*ngx_tcp_cleanup_pt)(void *data);
 
-
 struct ngx_tcp_cleanup_s {
     ngx_tcp_cleanup_pt      handler;
     void                   *data;

@@ -228,7 +228,7 @@ ngx_tcp_lua_init_session(ngx_tcp_session_t *s)
     
     rc = ngx_tcp_lua_process_by_chunk(L, s);
     
-    if (rc == NGX_DONE || rc == NGX_OK) {
+    if (rc == NGX_DONE || rc == NGX_OK || rc == NGX_ERROR) {
         ngx_tcp_finalize_session(s);
         return;
     }
