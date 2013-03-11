@@ -26,6 +26,8 @@ static char *ngx_tcp_access_rule(ngx_conf_t *cf, ngx_command_t *cmd,
     void *conf);
 static char *ngx_tcp_log_set_access_log(ngx_conf_t *cf, ngx_command_t *cmd,
     void *conf);
+/*static char *ngx_tcp_core_error_log(ngx_conf_t *cf, ngx_command_t *cmd,
+    void *conf);*/
 
 static ngx_command_t  ngx_tcp_core_commands[] = {
 
@@ -131,6 +133,13 @@ static ngx_command_t  ngx_tcp_core_commands[] = {
       0,
       NULL },
 
+    /*{ ngx_string("error_log"),
+      NGX_TCP_MAIN_CONF|NGX_TCP_SRV_CONF|NGX_CONF_1MORE,
+      ngx_tcp_core_error_log,
+      NGX_TCP_SRV_CONF_OFFSET,
+      0,
+      NULL },*/
+
     { ngx_string("directio_alignment"),
       NGX_TCP_MAIN_CONF|NGX_TCP_SRV_CONF|NGX_CONF_TAKE1,
       ngx_conf_set_off_slot,
@@ -230,7 +239,6 @@ ngx_tcp_core_create_srv_conf(ngx_conf_t *cf)
      *
      *     cscf->protocol = NULL;
      */
-
     if (ngx_array_init(&cscf->server_names, cf->pool, 4,
                        sizeof(ngx_tcp_server_name_t))
         != NGX_OK)
@@ -328,6 +336,15 @@ ngx_tcp_core_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
     if (conf->rules == NULL) {
         conf->rules = prev->rules;
     }
+
+    /*if (conf->error_log == NULL) {
+        if (prev->error_log) {
+            conf->error_log = prev->error_log;
+        } else {
+            conf->error_log = &cf->cycle->new_log;
+        }
+    }*/
+
 
     if (lscf->open_file_cache == NGX_CONF_UNSET_PTR) {
 
@@ -890,3 +907,39 @@ ngx_tcp_log_set_access_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     return NGX_CONF_OK;
 }
+
+
+/*static char *
+ngx_tcp_core_error_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    ngx_tcp_core_srv_conf_t *clcf = conf;
+
+    ngx_str_t  *value, name;
+
+    return NGX_CONF_OK;
+
+    if (clcf->error_log) {
+        return "is duplicate";
+    }
+
+    value = cf->args->elts;
+
+    if (ngx_strcmp(value[1].data, "stderr") == 0) {
+        ngx_str_null(&name);
+
+    } else {
+        name = value[1];
+    }
+
+    clcf->error_log = ngx_log_create(cf->cycle, &name);
+    if (clcf->error_log == NULL) {
+        return NGX_CONF_ERROR;
+    }
+
+    if (cf->args->nelts == 2) {
+        clcf->error_log->log_level = NGX_LOG_ERR;
+        return NGX_CONF_OK;
+    }
+
+    return ngx_log_set_levels(cf, clcf->error_log);
+}*/

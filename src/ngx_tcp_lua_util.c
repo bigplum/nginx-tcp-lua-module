@@ -1,4 +1,7 @@
 
+//http ext
+#include "lua_module/ngx_http_lua_shdict.h"
+//tcp only
 #include "ngx_md5.h"
 #include "ngx_tcp_lua_util.h"
 #include "ngx_tcp_lua_output.h"
@@ -110,6 +113,10 @@ ngx_tcp_lua_init_globals(ngx_conf_t *cf, lua_State *L)
 static void
 ngx_tcp_lua_inject_ngx_api(ngx_conf_t *cf, lua_State *L)
 {
+    ngx_http_lua_main_conf_t    *lmcf;
+
+    lmcf = ngx_http_conf_get_module_main_conf(cf, ngx_tcp_lua_module);
+
     lua_createtable(L, 0 /* narr */, 89 /* nrec */);    /* ngx.* */
 
     ngx_tcp_lua_inject_core_consts(L);
@@ -121,6 +128,8 @@ ngx_tcp_lua_inject_ngx_api(ngx_conf_t *cf, lua_State *L)
     ngx_tcp_lua_inject_req_socket_api(L);
 
     ngx_tcp_lua_inject_socket_api(cf->log, L);
+
+    ngx_http_lua_inject_shdict_api(lmcf, L);
 
     lua_getglobal(L, "package"); /* ngx package */
     lua_getfield(L, -1, "loaded"); /* ngx package loaded */

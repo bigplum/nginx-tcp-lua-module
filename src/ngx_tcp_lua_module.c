@@ -1,4 +1,5 @@
 
+#include "lua_module/ngx_http_lua_directive.h"
 #include "ngx_tcp_lua_common.h"
 #include "ngx_tcp_lua_cache.h"
 #include "ngx_tcp_lua_util.h"
@@ -26,7 +27,6 @@ void ngx_tcp_lua_reset_ctx(ngx_tcp_session_t *r, lua_State *L, ngx_tcp_lua_ctx_t
 static char *ngx_tcp_lua_lowat_check(ngx_conf_t *cf, void *post, void *data);
 char *ngx_tcp_lua_code_cache(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 
-
 static ngx_tcp_protocol_t  ngx_tcp_lua_protocol = {
 
     ngx_string("tcp_lua"),
@@ -46,6 +46,12 @@ static ngx_conf_post_t  ngx_tcp_lua_lowat_post =
 
 static ngx_command_t  ngx_tcp_lua_commands[] = {
 
+	{ ngx_string("lua_shared_dict"),
+		NGX_TCP_MAIN_CONF|NGX_CONF_TAKE2,
+		ngx_http_lua_shared_dict,
+		0,
+		0,
+		NULL },
     { ngx_string("lua_package_cpath"),
       NGX_TCP_MAIN_CONF|NGX_CONF_TAKE1,
       ngx_tcp_lua_package_cpath,
@@ -174,8 +180,8 @@ ngx_tcp_lua_init_session(ngx_tcp_session_t *s)
 
     c = s->connection;
 
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, c->log, 0, "tcp lua init and load src");
 
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, c->log, 0, "tcp lua init and load src");
     lscf = ngx_tcp_get_module_srv_conf(s, ngx_tcp_lua_module);
     lmcf = ngx_tcp_get_module_main_conf(s, ngx_tcp_lua_module);    
     L = lmcf->lua;
@@ -353,6 +359,7 @@ ngx_tcp_lua_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
                               prev->read_timeout, 60000);
                               
     ngx_conf_merge_uint_value(conf->pool_size, prev->pool_size, 30);
+
 
     return NGX_CONF_OK;
 }
