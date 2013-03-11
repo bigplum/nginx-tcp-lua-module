@@ -26,8 +26,8 @@ static char *ngx_tcp_access_rule(ngx_conf_t *cf, ngx_command_t *cmd,
     void *conf);
 static char *ngx_tcp_log_set_access_log(ngx_conf_t *cf, ngx_command_t *cmd,
     void *conf);
-/*static char *ngx_tcp_core_error_log(ngx_conf_t *cf, ngx_command_t *cmd,
-    void *conf);*/
+static char *ngx_tcp_core_error_log(ngx_conf_t *cf, ngx_command_t *cmd,
+    void *conf);
 
 static ngx_command_t  ngx_tcp_core_commands[] = {
 
@@ -133,12 +133,12 @@ static ngx_command_t  ngx_tcp_core_commands[] = {
       0,
       NULL },
 
-    /*{ ngx_string("error_log"),
+    { ngx_string("error_log"),
       NGX_TCP_MAIN_CONF|NGX_TCP_SRV_CONF|NGX_CONF_1MORE,
       ngx_tcp_core_error_log,
       NGX_TCP_SRV_CONF_OFFSET,
       0,
-      NULL },*/
+      NULL },
 
     { ngx_string("directio_alignment"),
       NGX_TCP_MAIN_CONF|NGX_TCP_SRV_CONF|NGX_CONF_TAKE1,
@@ -337,13 +337,13 @@ ngx_tcp_core_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
         conf->rules = prev->rules;
     }
 
-    /*if (conf->error_log == NULL) {
+    if (conf->error_log == NULL) {
         if (prev->error_log) {
             conf->error_log = prev->error_log;
         } else {
             conf->error_log = &cf->cycle->new_log;
         }
-    }*/
+    }
 
 
     if (lscf->open_file_cache == NGX_CONF_UNSET_PTR) {
@@ -909,14 +909,12 @@ ngx_tcp_log_set_access_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 }
 
 
-/*static char *
+static char *
 ngx_tcp_core_error_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
     ngx_tcp_core_srv_conf_t *clcf = conf;
 
     ngx_str_t  *value, name;
-
-    return NGX_CONF_OK;
 
     if (clcf->error_log) {
         return "is duplicate";
@@ -942,4 +940,4 @@ ngx_tcp_core_error_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     }
 
     return ngx_log_set_levels(cf, clcf->error_log);
-}*/
+}

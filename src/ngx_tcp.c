@@ -627,8 +627,8 @@ ngx_tcp_add_listening(ngx_conf_t *cf, ngx_tcp_conf_addr_t *addr)
     ls->pool_size = 256; //cscf->connection_pool_size;
     ls->post_accept_timeout = 10000; //cscf->client_header_timeout;
 
-    /*ls->logp = cscf->error_log; &cf->cycle->new_log*/
-    ls->logp = &cf->cycle->new_log;
+    ls->logp = cscf->error_log;
+    /*ls->logp = &cf->cycle->new_log;*/
     ls->log.data = &ls->addr_text;
     ls->log.handler = ngx_accept_log_error;
 
