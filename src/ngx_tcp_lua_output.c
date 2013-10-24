@@ -207,6 +207,32 @@ ngx_tcp_lua_ngx_echo(lua_State *L, unsigned newline,unsigned start)
     return 0;
 }
 
+int
+ngx_tcp_lua_ngx_exit(lua_State *L)
+{
+    ngx_tcp_session_t          *s;
+    ngx_tcp_lua_ctx_t          *ctx;
+    //ngx_buf_tag_t                tag;
+
+    lua_pushlightuserdata(L, &ngx_tcp_lua_request_key);
+    lua_rawget(L, LUA_GLOBALSINDEX);
+    s = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+
+    if (s == NULL) {
+        return luaL_error(L, "no request object found");
+    }
+
+    ctx = ngx_tcp_get_module_ctx(s, ngx_tcp_lua_module);
+
+    if (ctx == NULL) {
+        return luaL_error(L, "no request ctx found");
+    }
+	ctx->exited = 1;
+
+    
+    return lua_yield(L,0);
+}
 
 void
 ngx_tcp_lua_inject_output_api(lua_State *L)
@@ -216,6 +242,9 @@ ngx_tcp_lua_inject_output_api(lua_State *L)
 
     lua_pushcfunction(L, ngx_tcp_lua_ngx_print);
     lua_setfield(L, -2, "print");
+
+    lua_pushcfunction(L, ngx_tcp_lua_ngx_exit);
+    lua_setfield(L, -2, "exit");
 
 }
 
@@ -402,5 +431,6 @@ ngx_tcp_lua_copy_str_in_table(lua_State *L, u_char *dst)
 
     return dst;
 }
+
 
 

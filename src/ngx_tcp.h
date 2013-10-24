@@ -182,7 +182,7 @@ struct ngx_tcp_core_srv_conf_s {
     /*ACL rules*/
     ngx_array_t             *rules;
 
-	ngx_log_t               *error_log;
+    ngx_log_t               *error_log;
 
     ngx_tcp_log_srv_conf_t  *access_log;
 

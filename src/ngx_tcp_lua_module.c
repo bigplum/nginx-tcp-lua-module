@@ -588,8 +588,9 @@ ngx_tcp_lua_process_by_chunk(lua_State *L, ngx_tcp_session_t *s)
 
         dd("setting new ctx, ctx = %p", ctx);
 
-        ctx->cc_ref = LUA_NOREF;
+        ctx->cc_ref  = LUA_NOREF;
         ctx->ctx_ref = LUA_NOREF;
+		ctx->exited  = 0;
 
         ngx_tcp_set_ctx(s, ctx, ngx_tcp_lua_module);
 

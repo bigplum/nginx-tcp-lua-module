@@ -89,6 +89,7 @@ typedef struct ngx_tcp_lua_ctx_s {
 
     unsigned         socket_busy:1;
     unsigned         socket_ready:1;
+    unsigned         exited:1;
 } ngx_tcp_lua_ctx_t;
 
 #define DDEBUG 0
