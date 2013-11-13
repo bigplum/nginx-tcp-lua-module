@@ -1,10 +1,14 @@
 
+//tcp only
 #include "ngx_md5.h"
 #include "ngx_tcp_lua_util.h"
 #include "ngx_tcp_lua_output.h"
 #include "ngx_tcp_lua_socket.h"
 #include "ngx_tcp_lua_exception.h"
 #include "ngx_tcp_lua_log.h"
+#include "ngx_tcp_lua_string.h"
+#include "ngx_tcp_lua_time.h"
+#include "ngx_tcp_lua_shdict.h"
 
 
 char ngx_tcp_lua_code_cache_key;
@@ -24,7 +28,7 @@ static char ngx_tcp_lua_coroutines_key;
 #define AUX_MARK "\1"
 
 void ngx_tcp_lua_create_new_global_table(lua_State *L, int narr, int nrec);
-static void ngx_tcp_lua_inject_ngx_api(ngx_conf_t *cf, lua_State *L);
+static void ngx_tcp_lua_inject_ngx_api(ngx_conf_t *cf, lua_State *L,ngx_tcp_lua_main_conf_t *lmcf);
 void ngx_tcp_lua_inject_core_consts(lua_State *L);
 
 
@@ -92,7 +96,7 @@ ngx_tcp_lua_init_registry(ngx_conf_t *cf, lua_State *L)
 
 
 static void
-ngx_tcp_lua_init_globals(ngx_conf_t *cf, lua_State *L)
+ngx_tcp_lua_init_globals(ngx_conf_t *cf, lua_State *L,ngx_tcp_lua_main_conf_t *lmcf)
 {
     ngx_log_debug0(NGX_LOG_DEBUG_HTTP, cf->log, 0,
             "lua initializing lua globals");
@@ -103,13 +107,14 @@ ngx_tcp_lua_init_globals(ngx_conf_t *cf, lua_State *L)
     /* }}} */
 
 
-    ngx_tcp_lua_inject_ngx_api(cf, L);
+    ngx_tcp_lua_inject_ngx_api(cf, L, lmcf);
 }
 
 
 static void
-ngx_tcp_lua_inject_ngx_api(ngx_conf_t *cf, lua_State *L)
+ngx_tcp_lua_inject_ngx_api(ngx_conf_t *cf, lua_State *L,ngx_tcp_lua_main_conf_t *lmcf)
 {
+
     lua_createtable(L, 0 /* narr */, 89 /* nrec */);    /* ngx.* */
 
     ngx_tcp_lua_inject_core_consts(L);
@@ -117,10 +122,16 @@ ngx_tcp_lua_inject_ngx_api(ngx_conf_t *cf, lua_State *L)
     ngx_tcp_lua_inject_log_api(L);
 
     ngx_tcp_lua_inject_output_api(L);
+
+    ngx_tcp_lua_inject_string_api(L);
     
     ngx_tcp_lua_inject_req_socket_api(L);
 
     ngx_tcp_lua_inject_socket_api(cf->log, L);
+
+	ngx_tcp_lua_inject_time_api(L);
+
+    ngx_tcp_lua_inject_shdict_api(lmcf, L);
 
     lua_getglobal(L, "package"); /* ngx package */
     lua_getfield(L, -1, "loaded"); /* ngx package loaded */
@@ -211,7 +222,7 @@ ngx_tcp_lua_new_state(ngx_conf_t *cf, ngx_tcp_lua_main_conf_t *lmcf)
     lua_remove(L, -1); /* remove the "package" table */
 
     ngx_tcp_lua_init_registry(cf, L);
-    ngx_tcp_lua_init_globals(cf, L);
+    ngx_tcp_lua_init_globals(cf, L, lmcf);
 
     return L;
 }
@@ -384,9 +395,11 @@ ngx_tcp_lua_run_thread(lua_State *L, ngx_tcp_session_t *s,
 
                 ngx_log_debug0(NGX_LOG_DEBUG_HTTP, s->connection->log, 0,
                         "lua thread yielded");
+                if(ctx->exited != 1){
 
-                lua_settop(cc, 0);
-                return NGX_AGAIN;
+                    lua_settop(cc, 0);
+                    return NGX_AGAIN;
+                }
 
             case 0:
                 ngx_log_debug0(NGX_LOG_DEBUG_HTTP, s->connection->log, 0,
@@ -510,7 +523,7 @@ ngx_tcp_lua_wev_handler(ngx_tcp_session_t *s)
         return;
     }
 
-    if (rc == NGX_DONE || rc == NGX_OK) {
+    if (rc == NGX_DONE || rc == NGX_OK || rc==NGX_ERROR) {
         ngx_tcp_finalize_session(s);
         return;
     }

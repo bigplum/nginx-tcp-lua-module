@@ -610,8 +610,11 @@ static ngx_listening_t *
 ngx_tcp_add_listening(ngx_conf_t *cf, ngx_tcp_conf_addr_t *addr)
 {
     ngx_listening_t           *ls;
-    //ngx_tcp_core_srv_conf_t  *cscf;
+    ngx_tcp_core_srv_conf_t  *cscf;
 
+	//cscf=ngx_tcp_conf_get_module_srv_conf(cf, ngx_tcp_core_module);
+	cscf=ngx_tcp_get_module_srv_conf(addr->ctx,ngx_tcp_core_module); 
+         
     ls = ngx_create_listening(cf, addr->sockaddr, addr->socklen);
     if (ls == NULL) {
         return NULL;
@@ -624,7 +627,8 @@ ngx_tcp_add_listening(ngx_conf_t *cf, ngx_tcp_conf_addr_t *addr)
     ls->pool_size = 256; //cscf->connection_pool_size;
     ls->post_accept_timeout = 10000; //cscf->client_header_timeout;
 
-    ls->logp = &cf->cycle->new_log;
+    ls->logp = cscf->error_log;
+    /*ls->logp = &cf->cycle->new_log;*/
     ls->log.data = &ls->addr_text;
     ls->log.handler = ngx_accept_log_error;
 

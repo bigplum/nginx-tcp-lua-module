@@ -182,14 +182,18 @@ struct ngx_tcp_core_srv_conf_s {
     /*ACL rules*/
     ngx_array_t             *rules;
 
+    ngx_log_t               *error_log;
+
     ngx_tcp_log_srv_conf_t  *access_log;
 
     /* server ctx */
     ngx_tcp_conf_ctx_t      *ctx;
-    
+
     off_t         directio_alignment;      /* directio_alignment */
     
     size_t        client_body_buffer_size; /* client_body_buffer_size */
+
+
 };
 
 

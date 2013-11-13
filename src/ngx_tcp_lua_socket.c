@@ -12,6 +12,7 @@
 #define NGX_TCP_LUA_SOCKET_FT_BUFTOOSMALL  0x0010
 #define NGX_TCP_LUA_SOCKET_FT_NOMEM        0x0020
 
+extern int ngx_tcp_lua_ngx_echo(lua_State *L, unsigned newline,unsigned start);
 enum {
     SOCKET_CTX_INDEX = 1,
     SOCKET_TIMEOUT_INDEX = 2,
@@ -37,10 +38,8 @@ static ngx_int_t ngx_tcp_lua_socket_read_all(void *data, ssize_t bytes);
 static ngx_int_t ngx_tcp_lua_socket_read_line(void *data, ssize_t bytes);
 static ngx_int_t ngx_tcp_lua_socket_read(ngx_tcp_session_t *s,
     ngx_tcp_lua_socket_upstream_t *u);
-static int
-ngx_tcp_lua_socket_tcp_send(lua_State *L);
-static int
-ngx_tcp_lua_socket_tcp_send_retval_handler(ngx_tcp_session_t *s,
+static int ngx_tcp_lua_socket_tcp_send(lua_State *L);
+static int ngx_tcp_lua_socket_tcp_send_retval_handler(ngx_tcp_session_t *s,
     ngx_tcp_lua_socket_upstream_t *u, lua_State *L);
 static int ngx_tcp_lua_socket_tcp_close(lua_State *L);
 static int ngx_tcp_lua_socket_tcp_setoption(lua_State *L);
@@ -73,6 +72,7 @@ static ngx_int_t ngx_tcp_lua_socket_compile_pattern(u_char *data, size_t len,
 static ngx_int_t ngx_tcp_lua_socket_read_until(void *data, ssize_t bytes);
 static int ngx_tcp_lua_socket_cleanup_compiled_pattern(lua_State *L);
 static int ngx_tcp_lua_req_socket(lua_State *L);
+static int ngx_tcp_lua_req_socket_tcp_send(lua_State *L);
 static void ngx_tcp_lua_req_socket_rev_handler(ngx_tcp_session_t *s);
 static int ngx_tcp_lua_socket_downstream_destroy(lua_State *L);
 static void ngx_tcp_lua_req_socket_cleanup(void *data);
@@ -137,6 +137,9 @@ ngx_tcp_lua_inject_socket_api(ngx_log_t *log, lua_State *L)
     lua_pushcfunction(L, ngx_tcp_lua_socket_tcp_receiveuntil);
     lua_setfield(L, -2, "receiveuntil");
 
+    lua_pushcfunction(L, ngx_tcp_lua_req_socket_tcp_send);
+    lua_setfield(L, -2, "send");
+
     lua_pushcfunction(L, ngx_tcp_lua_socket_tcp_settimeout);
     lua_setfield(L, -2, "settimeout"); /* ngx socket mt */
 
@@ -197,6 +200,117 @@ ngx_tcp_lua_inject_req_socket_api(lua_State *L)
 
 
 static int
+ngx_tcp_lua_req_socket_tcp_send(lua_State *L)
+{
+    ngx_tcp_session_t          *s;
+    ngx_tcp_lua_ctx_t          *ctx;
+    const char                  *p;
+    size_t                       len;
+    size_t                       size;
+    ngx_buf_t                   *b;
+    ngx_chain_t                 *cl, *chain;
+    int                          i;
+    int                          nargs;
+    int                          type;
+    const char                  *msg;
+    //ngx_buf_tag_t                tag;
+    if (lua_gettop(L) != 2) {
+        return luaL_error(L, "expecting 2 arguments (including the object), "
+                          "but got %d", lua_gettop(L));
+    }
+
+    lua_pushlightuserdata(L, &ngx_tcp_lua_request_key);
+    lua_rawget(L, LUA_GLOBALSINDEX);
+    s = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+
+    if (s == NULL) {
+        return luaL_error(L, "no request object found");
+    }
+
+    ctx = ngx_tcp_get_module_ctx(s, ngx_tcp_lua_module);
+
+    if (ctx == NULL) {
+        return luaL_error(L, "no request ctx found");
+    }
+
+/*
+    if (ctx->eof) {
+        return luaL_error(L, "seen eof already");
+    }
+*/
+    size = 0;
+    type = lua_type(L, 2);
+    switch (type) {
+        case LUA_TNUMBER:
+        case LUA_TSTRING:
+            lua_tolstring(L, 2, &size);
+            break;
+
+        case LUA_TTABLE:
+            size = ngx_tcp_lua_calc_strlen_in_table(L, 2, 1 /* strict */);
+            break;
+
+        default:
+            msg = lua_pushfstring(L, "string, number, boolean, nil, "
+                    "or array table expected, got %s",
+                    lua_typename(L, type));
+
+            return luaL_argerror(L, 2, msg);
+    }
+
+    if (size == 0) {
+        /* do nothing for empty strings */
+        return 0;
+    }
+
+    b = ngx_create_temp_buf(s->pool, size);
+    if (b == NULL) {
+        return luaL_error(L, "out of memory");
+    }
+
+    switch (type) {
+        case LUA_TNUMBER:
+        case LUA_TSTRING:
+            p = (u_char *) lua_tolstring(L, -1, &size);
+            b->last = ngx_copy(b->last, (u_char *) p, size);
+            break;
+
+        case LUA_TTABLE:
+            b->last = ngx_tcp_lua_copy_str_in_table(L, b->last);
+            break;
+        default:
+            return luaL_error(L, "impossible to reach here");
+    }
+
+#if 0
+    if (b->last != b->end) {
+        return luaL_error(L, "buffer error: %p != %p", b->last, b->end);
+    }
+#endif
+
+    cl = ngx_alloc_chain_link(s->pool);
+    if (cl == NULL) {
+        return luaL_error(L, "out of memory");
+    }
+
+    cl->next = NULL;
+    cl->buf = b;
+
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, s->connection->log, 0,
+                   newline ? "lua say response" : "lua print response");
+                   
+    chain = s->connection->send_chain(s->connection, cl, 0);
+
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, s->connection->log, 0,
+                  "tcp_lua write chain %p", chain);
+    
+	lua_pushinteger(L, size);
+    return 1;
+}
+
+
+static int
 ngx_tcp_lua_socket_tcp(lua_State *L)
 {
     ngx_tcp_session_t      *s;
@@ -250,13 +364,16 @@ ngx_tcp_lua_socket_tcp_connect(lua_State *L)
     ngx_tcp_lua_srv_conf_t     *lscf;
     ngx_peer_connection_t       *pc;
     int                          timeout;
+    unsigned                     custom_pool;
+    int                          key_index;
+    const char                  *msg;
 
     ngx_tcp_lua_socket_upstream_t          *u;
 
     n = lua_gettop(L);
-    if (n != 2 && n != 3) {
-        return luaL_error(L, "ngx.socket connect: expecting 2 or 3 arguments "
-                          "(including the object), but seen %d", n);
+    if (n != 2 && n != 3 && n != 4) {
+        return luaL_error(L, "ngx.socket connect: expecting 2, 3, or 4 "
+                          "arguments (including the object), but seen %d", n);
     }
 
     lua_pushlightuserdata(L, &ngx_tcp_lua_request_key);
@@ -287,6 +404,39 @@ ngx_tcp_lua_socket_tcp_connect(lua_State *L)
     ngx_memcpy(host.data, p, len);
     host.data[len] = '\0';
 
+    key_index = 2;
+    custom_pool = 0;
+
+    if (lua_type(L, n) == LUA_TTABLE) {
+
+        /* found the last optional option table */
+
+        lua_getfield(L, n, "pool");
+
+        switch (lua_type(L, -1)) {
+        case LUA_TNUMBER:
+            lua_tostring(L, -1);
+
+        case LUA_TSTRING:
+            custom_pool = 1;
+
+            lua_pushvalue(L, -1);
+            lua_rawseti(L, 1, SOCKET_KEY_INDEX);
+
+            key_index = n + 1;
+
+            break;
+
+        default:
+            msg = lua_pushfstring(L, "bad \"pool\" option type: %s",
+                                  luaL_typename(L, -1));
+            luaL_argerror(L, n, msg);
+            break;
+        }
+
+        n--;
+    }
+
     if (n == 3) {
         port = luaL_checkinteger(L, 3);
 
@@ -296,9 +446,11 @@ ngx_tcp_lua_socket_tcp_connect(lua_State *L)
             return 2;
         }
 
-        lua_pushliteral(L, ":");
-        lua_insert(L, 3);
-        lua_concat(L, 3);
+        if (!custom_pool) {
+            lua_pushliteral(L, ":");
+            lua_insert(L, 3);
+            lua_concat(L, 3);
+        }
 
         dd("socket key: %s", lua_tostring(L, -1));
 
@@ -306,16 +458,24 @@ ngx_tcp_lua_socket_tcp_connect(lua_State *L)
         port = 0;
     }
 
-    /* the key's index is 2 */
+    if (!custom_pool) {
+        /* the key's index is 2 */
 
-    lua_pushvalue(L, -1);
-    lua_rawseti(L, 1, SOCKET_KEY_INDEX);
+        lua_pushvalue(L, 2);
+        lua_rawseti(L, 1, SOCKET_KEY_INDEX);
+    }
 
     lua_rawgeti(L, 1, SOCKET_CTX_INDEX);
     u = lua_touserdata(L, -1);
     lua_pop(L, 1);
 
     if (u) {
+        if (u->waiting) {
+            lua_pushnil(L);
+            lua_pushliteral(L, "socket busy");
+            return 2;
+        }
+
         if (u->is_downstream) {
             return luaL_error(L, "attempt to re-connect a request socket");
         }
@@ -377,7 +537,7 @@ ngx_tcp_lua_socket_tcp_connect(lua_State *L)
 
     s->connection->single_connection = 0;
 
-    rc = ngx_tcp_lua_get_keepalive_peer(s, L, 2, u);
+    rc = ngx_tcp_lua_get_keepalive_peer(s, L, key_index, u);
 
     if (rc == NGX_OK) {
         lua_pushinteger(L, 1);
