@@ -228,7 +228,7 @@ ngx_tcp_lua_ngx_exit(lua_State *L)
     if (ctx == NULL) {
         return luaL_error(L, "no request ctx found");
     }
-	ctx->exited = 1;
+    ctx->exited = 1;
 
     
     return lua_yield(L,0);

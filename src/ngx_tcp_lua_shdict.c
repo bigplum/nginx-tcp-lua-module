@@ -284,6 +284,8 @@ ngx_tcp_lua_inject_shdict_api(ngx_tcp_lua_main_conf_t *lmcf, lua_State *L)
     ngx_uint_t                   i;
     ngx_shm_zone_t             **zone;
 
+	//ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0, " init shm api %d\n",lmcf->shm_zones->nelts);
+
     if (lmcf->shm_zones != NULL) {
         lua_createtable(L, 0, lmcf->shm_zones->nelts /* nrec */);
                 /* ngx.shared */
@@ -320,7 +322,10 @@ ngx_tcp_lua_inject_shdict_api(ngx_tcp_lua_main_conf_t *lmcf, lua_State *L)
         zone = lmcf->shm_zones->elts;
 
         for (i = 0; i < lmcf->shm_zones->nelts; i++) {
+
             ctx = zone[i]->data;
+
+            //ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0," set shm %d %s\n",  ctx->name.data,(char*)ctx->name.data);
 
             lua_pushlstring(L, (char *) ctx->name.data, ctx->name.len);
                 /* shared mt key */
@@ -1123,6 +1128,7 @@ ngx_tcp_lua_shared_dict_get(ngx_shm_zone_t *zone, u_char *key_data,
         if (len != sizeof(u_char)) {
             ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "bad lua boolean "
                           "value size found for key %*s: %lu", key_len,
+
                           key_data, (unsigned long) len);
 
             ngx_shmtx_unlock(&ctx->shpool->mutex);

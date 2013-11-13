@@ -36,14 +36,27 @@
 #define NGX_TCP_LUA_FILE_KEY_LEN \
     (NGX_TCP_LUA_FILE_TAG_LEN + 2 * MD5_DIGEST_LENGTH)
 
-typedef struct ngx_tcp_lua_main_conf_s {
+typedef struct ngx_tcp_lua_main_conf_s ngx_tcp_lua_main_conf_t;
+
+typedef ngx_int_t (*ngx_tcp_lua_conf_handler_pt)(ngx_log_t *log,
+        ngx_tcp_lua_main_conf_t *lmcf, lua_State *L);
+
+struct ngx_tcp_lua_main_conf_s {
     lua_State       *lua;
 
     ngx_str_t        lua_path;
     ngx_str_t        lua_cpath;
 
+    ngx_tcp_lua_conf_handler_pt    init_handler;
+
     ngx_pool_t      *pool;
-} ngx_tcp_lua_main_conf_t;
+	
+    ngx_array_t     *shm_zones;  /* of ngx_shm_zone_t* */
+
+    ngx_uint_t                      shm_zones_inited;
+
+    unsigned         requires_shm:1;
+} ;
 
 
 typedef struct ngx_tcp_lua_srv_conf_s {
