@@ -144,6 +144,16 @@ typedef struct {
 } ngx_tcp_log_t;
 
 typedef struct {
+    u_char                     *start;
+    u_char                     *pos;
+    u_char                     *last;
+
+    ngx_event_t                *event;
+    ngx_msec_t                  flush;
+    ngx_int_t                   gzip;
+} ngx_tcp_log_buf_t;
+
+typedef struct {
     ngx_array_t             *logs;       /* array of ngx_tcp_log_t */
 
     ngx_open_file_cache_t   *open_file_cache;

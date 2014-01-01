@@ -67,7 +67,7 @@ typedef struct ngx_tcp_lua_srv_conf_s {
 } ngx_tcp_lua_srv_conf_t;
 
 
-typedef void (*ngx_tcp_cleanup_pt)(void *data);
+//typedef void (*ngx_tcp_cleanup_pt)(void *data);
 
 
 typedef struct ngx_tcp_lua_ctx_s {

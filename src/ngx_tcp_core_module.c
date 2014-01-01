@@ -818,9 +818,10 @@ ngx_tcp_log_set_access_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     ngx_tcp_core_srv_conf_t *cscf = conf;
     ngx_tcp_log_srv_conf_t  *lscf = cscf->access_log;
 
-    ssize_t                     buf;
+    ssize_t                     size;
     ngx_str_t                  *value, name;
     ngx_tcp_log_t              *log;
+    ngx_tcp_log_buf_t         *buffer;
 
     value = cf->args->elts;
 
@@ -864,28 +865,41 @@ ngx_tcp_log_set_access_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         name.len = value[2].len - 7;
         name.data = value[2].data + 7;
 
-        buf = ngx_parse_size(&name);
+        size = ngx_parse_size(&name);
 
-        if (buf == NGX_ERROR) {
+        if (size == NGX_ERROR || size == 0) {
             ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                               "invalid parameter \"%V\"", &value[2]);
+                               "invalid buffer size \"%V\"", &value[2]);
             return NGX_CONF_ERROR;
         }
 
-        if (log->file->buffer && log->file->last - log->file->pos != buf) {
-            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                               "access_log \"%V\" already defined "
-                               "with different buffer size", &value[1]);
+        if (log->file->data) {
+            buffer = log->file->data;
+
+            if (buffer->last - buffer->start != size)
+            {
+                ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                                   "access_log \"%V\" already defined "
+                                   "with conflicting parameters",
+                                   &value[1]);
+                return NGX_CONF_ERROR;
+            }
+
+            return NGX_CONF_OK;
+        }
+        
+        buffer = ngx_pcalloc(cf->pool, sizeof(ngx_tcp_log_buf_t));
+        if (buffer == NULL) {
             return NGX_CONF_ERROR;
         }
 
-        log->file->buffer = ngx_palloc(cf->pool, buf);
-        if (log->file->buffer == NULL) {
+        buffer->start = ngx_pnalloc(cf->pool, size);
+        if (buffer->start == NULL) {
             return NGX_CONF_ERROR;
         }
 
-        log->file->pos = log->file->buffer;
-        log->file->last = log->file->buffer + buf;
+        buffer->pos = buffer->start;
+        buffer->last = buffer->start + size;
     }
 
     return NGX_CONF_OK;
