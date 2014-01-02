@@ -463,7 +463,7 @@ ngx_tcp_lua_socket_tcp_connect(lua_State *L)
     }
 
     rctx->name = host;
-    //rctx->type = NGX_RESOLVE_A;
+    rctx->type = NGX_RESOLVE_A;
     rctx->handler = ngx_tcp_lua_socket_resolve_handler;
     rctx->data = u;
     rctx->timeout = cscf->resolver_timeout;

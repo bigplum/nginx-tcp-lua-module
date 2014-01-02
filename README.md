@@ -7,6 +7,8 @@ planed to be compatible with ngx-lua module.
 
 Thanks for great job of ngx-lua module.
 
+Tested with nginx-1.4.4.
+
 Directives
 ============
 
