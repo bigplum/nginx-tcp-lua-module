@@ -204,15 +204,12 @@ ngx_tcp_lua_req_socket_tcp_send(lua_State *L)
 {
     ngx_tcp_session_t          *s;
     ngx_tcp_lua_ctx_t          *ctx;
-    const char                  *p;
-    size_t                       len;
-    size_t                       size;
-    ngx_buf_t                   *b;
-    ngx_chain_t                 *cl, *chain;
-    int                          i;
-    int                          nargs;
-    int                          type;
-    const char                  *msg;
+    const u_char               *p;
+    size_t                     size;
+    ngx_buf_t                  *b;
+    ngx_chain_t                *cl, *chain;
+    int                        type;
+    const char                 *msg;
     //ngx_buf_tag_t                tag;
     if (lua_gettop(L) != 2) {
         return luaL_error(L, "expecting 2 arguments (including the object), "
@@ -2241,7 +2238,13 @@ ngx_tcp_lua_socket_test_connect(ngx_connection_t *c)
         }
 
         if (err) {
-            (void) ngx_connection_error(c, err, "connect() failed");
+			char errstr[255];
+			char * addr="";
+			if(c->sockaddr){
+				addr= inet_ntoa(((struct sockaddr_in*)(c->sockaddr))->sin_addr); 
+			}
+			snprintf(errstr,255,"connect() %s failed",addr);
+            (void) ngx_connection_error(c, err, errstr);
             return err;
         }
     }

@@ -2,10 +2,10 @@
 #define DDEBUG 0
 #endif
 //#include "ddebug.h"
-
 #include "ngx_tcp_lua_time.h"
 
-
+extern u_char *ngx_http_time(u_char *buf, time_t t);
+extern time_t ngx_http_parse_time(u_char *value, size_t len);
 static int ngx_tcp_lua_ngx_today(lua_State *L);
 static int ngx_tcp_lua_ngx_time(lua_State *L);
 static int ngx_tcp_lua_ngx_now(lua_State *L);
