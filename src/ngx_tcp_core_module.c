@@ -6,6 +6,7 @@
 #include "ngx_tcp.h"
 
 
+static void *ngx_tcp_core_preconfiguration(ngx_conf_t *cf);
 static void *ngx_tcp_core_create_main_conf(ngx_conf_t *cf);
 static void *ngx_tcp_core_create_srv_conf(ngx_conf_t *cf);
 static char *ngx_tcp_core_merge_srv_conf(ngx_conf_t *cf, void *parent,
@@ -160,7 +161,8 @@ static ngx_command_t  ngx_tcp_core_commands[] = {
 
 static ngx_tcp_module_t  ngx_tcp_core_module_ctx = {
     NULL,                                  /* protocol */
-    NULL,
+    ngx_tcp_core_preconfiguration,         /*preconfiguration*/
+    NULL,                                  /*postconfiguration*/
 
     ngx_tcp_core_create_main_conf,         /* create main configuration */
     NULL,                                  /* init main configuration */
@@ -188,6 +190,12 @@ ngx_module_t  ngx_tcp_core_module = {
 
 static ngx_str_t  ngx_tcp_access_log = ngx_string("logs/tcp_access.log");
 
+static void *
+ngx_tcp_core_preconfiguration(ngx_conf_t *cf)
+{
+	return NGX_OK;
+	/*return ngx_tcp_variables_add_core_vars(cf);*/
+}
 
 static void *
 ngx_tcp_core_create_main_conf(ngx_conf_t *cf) 

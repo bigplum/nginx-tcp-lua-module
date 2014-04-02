@@ -144,6 +144,7 @@ static ngx_command_t  ngx_tcp_lua_commands[] = {
 
 static ngx_tcp_module_t  ngx_tcp_lua_module_ctx = {
     &ngx_tcp_lua_protocol,              /* protocol */
+    NULL,                               /*  preconfiguration */
     ngx_tcp_lua_init,                   /*  postconfiguration */
 
     ngx_tcp_lua_create_main_conf,       /*  create main configuration */

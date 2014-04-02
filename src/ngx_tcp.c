@@ -151,6 +151,21 @@ ngx_tcp_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     pcf = *cf;
     cf->ctx = ctx;
 
+
+    for (m = 0; ngx_modules[m]; m++) {
+        if (ngx_modules[m]->type != NGX_TCP_MODULE) {
+            continue;
+        }
+
+        module = ngx_modules[m]->ctx;
+
+        if (module->preconfiguration) {
+            if (module->preconfiguration(cf) != NGX_OK) {
+                return NGX_CONF_ERROR;
+            }
+        }
+    }
+
     cf->module_type = NGX_TCP_MODULE;
     cf->cmd_type = NGX_TCP_MAIN_CONF;
     rv = ngx_conf_parse(cf, NULL);

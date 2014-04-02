@@ -224,6 +224,7 @@ struct ngx_tcp_protocol_s {
 typedef struct {
     ngx_tcp_protocol_t         *protocol;
 
+    ngx_int_t   (*preconfiguration)(ngx_conf_t *cf);
     ngx_int_t   (*postconfiguration)(ngx_conf_t *cf);
 
     void        *(*create_main_conf)(ngx_conf_t *cf);
