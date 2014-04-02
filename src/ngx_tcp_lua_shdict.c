@@ -397,7 +397,7 @@ ngx_tcp_lua_shdict_get(lua_State *L)
     hash = ngx_crc32_short(key.data, key.len);
 
 #if (NGX_DEBUG)
-    ngx_log_debug2(NGX_LOG_DEBUG_TCP, ctx->log, 0,
+    ngx_log_debug2(NGX_LOG_DEBUG_HTTP, ctx->log, 0,
                    "fetching key \"%V\" in shared dict \"%V\"", &key, &name);
 #endif /* NGX_DEBUG */
 
@@ -811,7 +811,7 @@ ngx_tcp_lua_shdict_set_helper(lua_State *L, int flags)
 replace:
         if (value.data && value.len == (size_t) sd->value_len) {
 
-            ngx_log_debug0(NGX_LOG_DEBUG_TCP, ctx->log, 0,
+            ngx_log_debug0(NGX_LOG_DEBUG_HTTP, ctx->log, 0,
                 "lua shared dict set: found old entry and value size matched, "
                 "reusing it");
 
@@ -848,7 +848,7 @@ replace:
             return 3;
         }
 
-        ngx_log_debug0(NGX_LOG_DEBUG_TCP, ctx->log, 0,
+        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, ctx->log, 0,
             "lua shared dict set: found old entry bug value size NOT matched, "
             "removing it first");
 
@@ -876,7 +876,7 @@ insert:
         return 3;
     }
 
-    ngx_log_debug0(NGX_LOG_DEBUG_TCP, ctx->log, 0,
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, ctx->log, 0,
         "lua shared dict set: creating a new entry");
 
     n = offsetof(ngx_rbtree_node_t, color)
@@ -888,7 +888,7 @@ insert:
 
     if (node == NULL) {
 
-        ngx_log_debug1(NGX_LOG_DEBUG_TCP, ctx->log, 0,
+        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, ctx->log, 0,
             "lua shared dict set: overriding non-expired items due to memory "
             "shortage for entry \"%V\"", &name);
 

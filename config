@@ -171,5 +171,6 @@ NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/src/ngx_tcp.c \
                 $ngx_addon_dir/src/ngx_tcp_lua_log.c \
                 $ngx_addon_dir/src/ngx_tcp_lua_time.c \
                 $ngx_addon_dir/src/ngx_tcp_lua_shdict.c \
-                $ngx_addon_dir/src/ngx_tcp_lua_string.c"
+                $ngx_addon_dir/src/ngx_tcp_lua_string.c "
+
 

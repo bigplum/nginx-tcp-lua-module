@@ -28,6 +28,8 @@ extern char ngx_tcp_lua_request_key;
 extern char ngx_tcp_lua_cf_log_key;
 
 
+/* char whose address we'll use as key for the nginx request socket pointer */
+extern char ngx_tcp_lua_request_socket_key;
 
 lua_State *ngx_tcp_lua_new_state(ngx_conf_t *cf, ngx_tcp_lua_main_conf_t *lmcf);
 lua_State *ngx_tcp_lua_new_thread(ngx_tcp_session_t *s, lua_State *L, int *ref);

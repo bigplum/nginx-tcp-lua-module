@@ -63,7 +63,7 @@ ngx_tcp_lua_var_get(lua_State *L)
     }
 
 /*#if (NGX_PCRE)*/
-#if (0)
+#if 0
     if (lua_type(L, -1) == LUA_TNUMBER) {
         /* it is a regex capturing variable */
 
