@@ -135,6 +135,11 @@ typedef struct {
     ngx_array_t              servers;         /* ngx_tcp_core_srv_conf_t */
     ngx_array_t              listen;          /* ngx_tcp_listen_t */
     ngx_array_t              virtual_servers; /* ngx_tcp_virtual_server_t */
+	ngx_uint_t                 variables_hash_max_size;
+	ngx_uint_t                 variables_hash_bucket_size;
+	ngx_hash_t                 variables_hash;
+	ngx_array_t                variables;       /* ngx_http_variable_t */
+	ngx_hash_keys_arrays_t    *variables_keys;
 } ngx_tcp_core_main_conf_t;
 
 typedef struct {

@@ -66,3 +66,23 @@ tcp {
 foofoofoofoo
 --- raw_response: foofoofoofoo
 
+
+=== TEST 4: receive()
+--- config 
+--- main_config 
+tcp {
+    server {
+        listen 1980;
+        process_by_lua '
+            local sock = ngx.req.socket()
+            local re = sock:receive()
+            if re == nil then
+                ngx.print("error")
+            end
+            ngx.print(ngx.var.remote_addr)
+        ';
+    }
+}
+--- raw_request
+foooooo
+--- raw_response: 127.0.0.1

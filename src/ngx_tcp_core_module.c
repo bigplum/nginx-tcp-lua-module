@@ -7,6 +7,7 @@
 
 
 static void *ngx_tcp_core_preconfiguration(ngx_conf_t *cf);
+static void * ngx_tcp_core_init_main_conf(ngx_conf_t *cf) ;
 static void *ngx_tcp_core_create_main_conf(ngx_conf_t *cf);
 static void *ngx_tcp_core_create_srv_conf(ngx_conf_t *cf);
 static char *ngx_tcp_core_merge_srv_conf(ngx_conf_t *cf, void *parent,
@@ -32,6 +33,19 @@ static char *ngx_tcp_core_error_log(ngx_conf_t *cf, ngx_command_t *cmd,
 
 static ngx_command_t  ngx_tcp_core_commands[] = {
 
+    { ngx_string("variables_hash_max_size"),
+      NGX_TCP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_num_slot,
+      NGX_TCP_MAIN_CONF_OFFSET,
+      offsetof(ngx_tcp_core_main_conf_t, variables_hash_max_size),
+      NULL },
+
+    { ngx_string("variables_hash_bucket_size"),
+      NGX_TCP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_num_slot,
+      NGX_TCP_MAIN_CONF_OFFSET,
+      offsetof(ngx_tcp_core_main_conf_t, variables_hash_bucket_size),
+      NULL },
     { ngx_string("server"),
       NGX_TCP_MAIN_CONF|NGX_CONF_BLOCK|NGX_CONF_MULTI|NGX_CONF_NOARGS,
       ngx_tcp_core_server,
@@ -165,7 +179,7 @@ static ngx_tcp_module_t  ngx_tcp_core_module_ctx = {
     NULL,                                  /*postconfiguration*/
 
     ngx_tcp_core_create_main_conf,         /* create main configuration */
-    NULL,                                  /* init main configuration */
+    ngx_tcp_core_init_main_conf,           /* init main configuration */
 
     ngx_tcp_core_create_srv_conf,          /* create server configuration */
     ngx_tcp_core_merge_srv_conf            /* merge server configuration */
@@ -193,8 +207,8 @@ static ngx_str_t  ngx_tcp_access_log = ngx_string("logs/tcp_access.log");
 static void *
 ngx_tcp_core_preconfiguration(ngx_conf_t *cf)
 {
-	return NGX_OK;
-	/*return ngx_tcp_variables_add_core_vars(cf);*/
+	//return NGX_OK;
+	return ngx_tcp_variables_add_core_vars(cf);
 }
 
 static void *
@@ -226,10 +240,31 @@ ngx_tcp_core_create_main_conf(ngx_conf_t *cf)
         return NULL;
     }
 
+	cmcf->variables_hash_max_size = NGX_CONF_UNSET_UINT;
+	cmcf->variables_hash_bucket_size = NGX_CONF_UNSET_UINT;
 
     return cmcf;
 }
 
+static void *
+ngx_tcp_core_init_main_conf(ngx_conf_t *cf) 
+{
+    ngx_tcp_core_main_conf_t  *cmcf;
+
+    cmcf = ngx_tcp_conf_get_module_main_conf(cf, ngx_tcp_core_module);
+
+	if (cmcf->variables_hash_max_size == NGX_CONF_UNSET_UINT) {
+		cmcf->variables_hash_max_size = 512;
+	}
+
+	if (cmcf->variables_hash_bucket_size == NGX_CONF_UNSET_UINT) {
+		cmcf->variables_hash_bucket_size = 64;
+	}
+
+	cmcf->variables_hash_bucket_size = ngx_align(cmcf->variables_hash_bucket_size, ngx_cacheline_size);
+    return NGX_CONF_OK;
+
+}
 
 static void *
 ngx_tcp_core_create_srv_conf(ngx_conf_t *cf) 

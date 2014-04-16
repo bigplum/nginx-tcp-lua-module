@@ -4,7 +4,7 @@
 
 #include "ngx_tcp_lua_variable.h"
 #include "ngx_tcp_lua_util.h"
-#include "ngx_http_variables.h"
+#include "ngx_tcp_variables.h"
 
 
 static int ngx_tcp_lua_var_get(lua_State *L);
@@ -43,7 +43,7 @@ ngx_tcp_lua_var_get(lua_State *L)
     size_t                       len;
     ngx_uint_t                   hash;
     ngx_str_t                    name;
-    ngx_http_variable_value_t   *vv;
+    ngx_tcp_variable_value_t   *vv;
 /*
 #if (NGX_PCRE)
     u_char                      *val;
@@ -85,7 +85,7 @@ ngx_tcp_lua_var_get(lua_State *L)
             return 1;
         }
 
-        /* n >= 0 && n < r->ncaptures */
+        /* n >= 0 && n < s->ncaptures */
 
         cap = s->captures;
 
@@ -110,8 +110,7 @@ ngx_tcp_lua_var_get(lua_State *L)
 
     name.len = len;
     name.data = lowcase;
-
-    vv = ngx_http_get_variable(s, &name, hash);
+    vv = ngx_tcp_get_variable(s, &name, hash);
 
     if (vv == NULL || vv->not_found) {
         lua_pushnil(L);
@@ -134,8 +133,8 @@ ngx_tcp_lua_var_get(lua_State *L)
 static int
 ngx_tcp_lua_var_set(lua_State *L)
 {
-    ngx_http_variable_t         *v;
-    ngx_http_variable_value_t   *vv;
+    ngx_tcp_variable_t         *v;
+    ngx_tcp_variable_value_t   *vv;
     ngx_tcp_core_main_conf_t   *cmcf;
     u_char                      *p, *lowcase, *val;
     size_t                       len;
@@ -160,7 +159,7 @@ ngx_tcp_lua_var_set(lua_State *L)
 
     p = (u_char *) luaL_checklstring(L, 2, &len);
 
-    lowcase = ngx_palloc(r->pool, len + 1);
+    lowcase = ngx_palloc(s->pool, len + 1);
     if (lowcase == NULL) {
         return luaL_error(L, "memory allocation error");
     }
@@ -180,7 +179,7 @@ ngx_tcp_lua_var_set(lua_State *L)
     case LUA_TSTRING:
         p = (u_char *) luaL_checklstring(L, 3, &len);
 
-        val = ngx_palloc(r->pool, len);
+        val = ngx_palloc(s->pool, len);
         if (val == NULL) {
             return luaL_error(L, "memory allocation erorr");
         }
@@ -205,12 +204,12 @@ ngx_tcp_lua_var_set(lua_State *L)
 
     /* we fetch the variable itself */
 
-    cmcf = ngx_tcp_get_module_main_conf(r, ngx_tcp_core_module);
+    cmcf = ngx_tcp_get_module_main_conf(s, ngx_tcp_core_module);
 
     v = ngx_hash_find(&cmcf->variables_hash, hash, name.data, name.len);
 
     if (v) {
-        if (!(v->flags & NGX_HTTP_VAR_CHANGEABLE)) {
+        if (!(v->flags & NGX_TCP_VAR_CHANGEABLE)) {
             return luaL_error(L, "variable \"%s\" not changeable", lowcase);
         }
 
@@ -218,7 +217,7 @@ ngx_tcp_lua_var_set(lua_State *L)
 
             dd("set variables with set_handler");
 
-            vv = ngx_palloc(r->pool, sizeof(ngx_tcp_variable_value_t));
+            vv = ngx_palloc(s->pool, sizeof(ngx_tcp_variable_value_t));
             if (vv == NULL) {
                 return luaL_error(L, "out of memory");
             }
@@ -239,13 +238,13 @@ ngx_tcp_lua_var_set(lua_State *L)
                 vv->len = len;
             }
 
-            v->set_handler(r, vv, v->data);
+            v->set_handler(s, vv, v->data);
 
             return 0;
         }
 
-        if (v->flags & NGX_HTTP_VAR_INDEXED) {
-            vv = &r->variables[v->index];
+        /*if (v->flags & NGX_TCP_VAR_INDEXED) {
+            vv = &s->variables[v->index];
 
             dd("set indexed variable");
 
@@ -267,7 +266,7 @@ ngx_tcp_lua_var_set(lua_State *L)
             }
 
             return 0;
-        }
+        }*/
 
         return luaL_error(L, "variable \"%s\" cannot be assigned a value",
                 lowcase);

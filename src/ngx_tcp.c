@@ -232,6 +232,9 @@ ngx_tcp_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         }
     }
     
+    if (ngx_tcp_variables_init_vars(cf) != NGX_OK) {
+        return NGX_CONF_ERROR;
+    }
     /*
      * tcp{}'s cf->ctx was needed while the configuration merging
      * and in postconfiguration process
