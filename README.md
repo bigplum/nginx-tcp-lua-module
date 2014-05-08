@@ -92,6 +92,7 @@ ngx.req.socket
 
     receive
     receiveuntil
+    send
 
 ngx.say/ngx.print
 ------------
