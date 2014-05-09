@@ -466,46 +466,12 @@ ngx_tcp_lua_run_thread(lua_State *L, ngx_tcp_session_t *s,
 
 }
 
-ngx_int_t
-ngx_tcp_lua_send(ngx_tcp_session_t *s,size_t *len)
-{
-    ngx_tcp_lua_ctx_t          *ctx;
-	ngx_event_t   *wev;
-    ngx_chain_t                *cl ,*chain ,**ll;
-    ctx = ngx_tcp_get_module_ctx(s, ngx_tcp_lua_module);
-	wev=s->connection->write;
-	if(ctx->out==NULL){
-		return NGX_OK;
-	}
-    chain = s->connection->send_chain(s->connection, ctx->out, 0);
-	if(chain==NGX_CHAIN_ERROR){
-		return NGX_ERROR;
-	}
-	*len=0;	
-	if(!wev->ready){
-		return NGX_AGAIN;
-	}
-	ll=&ctx->out->next;
-	for (cl = ctx->out; cl->next; cl= cl->next) {  
-		*len += cl->buf->last-cl->buf->start;
-		ll=&cl->next;
-	}
-	*ll=ctx->free_bufs;
-	ctx->free_bufs=ctx->out;
-	ctx->out=NULL;
-	return NGX_OK;
-	/* free buf */
-	/*cl->next=ctx->free_recv_bufs;
-	ctx->free_recv_bufs=cl;*/
-
-};
 
 void 
 ngx_tcp_lua_wev_handler(ngx_tcp_session_t *s) 
 {
     int                                 nret = 0;
     ngx_int_t                           rc;
-	size_t                              len;
     ngx_event_t                         *wev;
     ngx_connection_t                    *c;
     ngx_tcp_lua_ctx_t                   *ctx;
@@ -527,7 +493,7 @@ ngx_tcp_lua_wev_handler(ngx_tcp_session_t *s)
         return;
     }
 
-	if (!ctx->socket_busy && ctx->socket_ready) {
+    if (!ctx->socket_busy && ctx->socket_ready) {
 
         dd("resuming socket api");
 

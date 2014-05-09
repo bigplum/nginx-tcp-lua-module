@@ -3,7 +3,6 @@
 #include <ngx_core.h>
 #include <ngx_event.h>
 #include "ngx_tcp.h"
-#include "ngx_tcp_variables.h"
 
 
 static char *ngx_tcp_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
