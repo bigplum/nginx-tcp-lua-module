@@ -207,11 +207,9 @@ ngx_tcp_lua_req_socket_tcp_send(lua_State *L)
     const u_char               *p;
     size_t                     size;
     ngx_buf_t                  *b;
-    ngx_chain_t                *cl, *chain;
-    ngx_tcp_core_srv_conf_t             *cscf;
+    ngx_chain_t                *cl ,*chain ;
     ngx_tcp_lua_socket_upstream_t       *u;
     int                        type;
-    ngx_int_t                            rc;
     const char                 *msg;
     //ngx_buf_tag_t                tag;
     if (lua_gettop(L) != 2) {
@@ -270,7 +268,7 @@ ngx_tcp_lua_req_socket_tcp_send(lua_State *L)
         return 0;
     }
     cl=ngx_tcp_lua_chains_get_free_buf(s->connection->log, s->pool,
-                                             &ctx->free_recv_bufs,
+                                             &ctx->free_bufs,
                                              size,
                                              (ngx_buf_tag_t)
                                              &ngx_tcp_lua_module);
@@ -297,54 +295,22 @@ ngx_tcp_lua_req_socket_tcp_send(lua_State *L)
             return luaL_error(L, "impossible to reach here");
     }
 //asyn send back
-    u->request_bufs = cl;
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, s->connection->log, 0, "lua send response" );
+                   
+    chain = s->connection->send_chain(s->connection, cl, 0);
 
-    u->request_len = size;
-    u->request_sent = 0;
-    u->ft_type = 0;
+	if(chain==cl){
+		size=size - ( cl->buf->last - cl->buf->pos );
+	}
+	/* free buf */
+	cl->next=ctx->free_recv_bufs;
+	ctx->free_recv_bufs=cl;
 
-    /* mimic ngx_tcp_upstream_init_request here */
-
-    if (u->output.pool == NULL) {
-        cscf = ngx_tcp_get_module_srv_conf(s, ngx_tcp_core_module);
-
-        u->output.alignment = cscf->directio_alignment;
-        u->output.pool = s->pool;
-        u->output.bufs.num = 1;
-        u->output.bufs.size = cscf->client_body_buffer_size;
-        u->output.output_filter = ngx_chain_writer;
-        u->output.filter_ctx = &u->writer;
-        u->output.tag = (ngx_buf_tag_t) &ngx_tcp_lua_module;
-
-        u->writer.pool = s->pool;
-    }
-
-    u->waiting = 0;
-    rc = ngx_tcp_lua_socket_send(s, u);
-
-    dd("socket send returned %d", (int) rc);
-
-    if (rc == NGX_ERROR) {
-        return ngx_tcp_lua_socket_error_retval_handler(s, u, L);
-    }
-
-    if (rc == NGX_OK) {
-        lua_pushinteger(L, size);
-        return 1;
-    }
-
-    /* rc == NGX_AGAIN */
-    /* set s->write_event_handler to go on session process */
-    s->write_event_handler = ngx_tcp_lua_wev_handler;
-
-    u->waiting = 1;
-    u->prepare_retvals = ngx_tcp_lua_socket_tcp_send_retval_handler;
-
-    ctx->data = u;
-    ctx->socket_busy = 1;
-    ctx->socket_ready = 0;
-
-    return lua_yield(L, 0);
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, s->connection->log, 0,
+                  "tcp_lua write chain %p", chain);
+    
+	lua_pushinteger(L, size);
+    return 1;	
 }
 
 
