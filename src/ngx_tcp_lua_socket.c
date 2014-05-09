@@ -48,6 +48,8 @@ static int ngx_tcp_lua_socket_tcp_getreusedtimes(lua_State *L);
 static int ngx_tcp_lua_socket_tcp_setkeepalive(lua_State *L);
 static void ngx_tcp_lua_socket_tcp_handler(ngx_event_t *ev);
 static ngx_int_t ngx_tcp_lua_socket_tcp_get_peer(ngx_peer_connection_t *pc, void *data);
+static void ngx_tcp_lua_req_send_handler(ngx_tcp_session_t *s,
+    ngx_tcp_lua_socket_upstream_t *u);
 static void ngx_tcp_lua_socket_read_handler(ngx_tcp_session_t *s,
     ngx_tcp_lua_socket_upstream_t *u);
 static void ngx_tcp_lua_socket_send_handler(ngx_tcp_session_t *s,
@@ -205,12 +207,14 @@ ngx_tcp_lua_req_socket_tcp_send(lua_State *L)
     ngx_tcp_session_t          *s;
     ngx_tcp_lua_ctx_t          *ctx;
     const u_char               *p;
-    size_t                     size;
+    size_t                     size,len;
     ngx_buf_t                  *b;
-    ngx_chain_t                *cl ,*chain ;
+    ngx_chain_t                *cl ,*chain;
     ngx_tcp_lua_socket_upstream_t       *u;
     int                        type;
+	ngx_int_t                  rc;
     const char                 *msg;
+	ngx_connection_t           *c;
     //ngx_buf_tag_t                tag;
     if (lua_gettop(L) != 2) {
         return luaL_error(L, "expecting 2 arguments (including the object), "
@@ -276,10 +280,6 @@ ngx_tcp_lua_req_socket_tcp_send(lua_State *L)
         return luaL_error(L, "out of memory");
     }
 	b=cl->buf;
-    /*b = ngx_create_temp_buf(s->pool, size);
-    if (b == NULL) {
-        return luaL_error(L, "out of memory");
-    }*/
 
     switch (type) {
         case LUA_TNUMBER:
@@ -295,8 +295,43 @@ ngx_tcp_lua_req_socket_tcp_send(lua_State *L)
             return luaL_error(L, "impossible to reach here");
     }
 //asyn send back
+#if 0
     ngx_log_debug0(NGX_LOG_DEBUG_HTTP, s->connection->log, 0, "lua send response" );
-                   
+	ctx->out=cl;
+	c=s->connection;	
+
+	rc=ngx_tcp_lua_send(s,&len);
+    ngx_log_debug2(NGX_LOG_DEBUG_HTTP, s->connection->log, 0,
+                  "tcp_lua send %d chain %p",rc ,ctx->out);
+	if(rc==NGX_OK){
+		lua_pushinteger(L,len);
+		return 1;
+	}
+	if(rc==NGX_ERROR){
+		lua_pushnil(L);
+		lua_pushliteral(L,"send error");
+		return 2;
+	}
+
+	u->write_event_handler = ngx_tcp_lua_req_send_handler;
+	u->read_event_handler = ngx_tcp_lua_socket_dummy_handler;
+
+    if (c->write->timer_set) {
+        ngx_del_timer(c->write);
+    }
+	ngx_add_timer(c->write, u->send_timeout);
+
+	if (ngx_handle_write_event(c->write, u->conf->send_lowat) != NGX_OK) {
+		ngx_tcp_lua_socket_handle_error(s, u,
+					 NGX_TCP_LUA_SOCKET_FT_ERROR);
+		return NGX_ERROR;
+	}
+
+    s->write_event_handler = ngx_tcp_lua_wev_handler;
+    return lua_yield(L, 0);
+#endif
+	
+	#if 1
     chain = s->connection->send_chain(s->connection, cl, 0);
 
 	if(chain==cl){
@@ -311,6 +346,7 @@ ngx_tcp_lua_req_socket_tcp_send(lua_State *L)
     
 	lua_pushinteger(L, size);
     return 1;	
+	#endif
 }
 
 
@@ -1877,6 +1913,15 @@ ngx_tcp_lua_socket_read_handler(ngx_tcp_session_t *s,
     }
 }
 
+static void
+ngx_tcp_lua_req_send_handler(ngx_tcp_session_t *s,
+    ngx_tcp_lua_socket_upstream_t *u)
+{
+    if (s->connection->write->timer_set) {
+        ngx_del_timer(s->connection->write);
+    }
+	s->write_event_handler(s);
+}
 
 static void
 ngx_tcp_lua_socket_send_handler(ngx_tcp_session_t *s,
@@ -1901,7 +1946,6 @@ ngx_tcp_lua_socket_send_handler(ngx_tcp_session_t *s,
         (void) ngx_tcp_lua_socket_send(s, u);
     }
 }
-
 
 static ngx_int_t
 ngx_tcp_lua_socket_send(ngx_tcp_session_t *s,
@@ -2858,11 +2902,6 @@ ngx_tcp_lua_req_socket(lua_State *L)
     u->read_timeout = u->conf->read_timeout;
     u->connect_timeout = u->conf->connect_timeout;
     u->send_timeout = u->conf->send_timeout;
-
-	u->writer.out = NULL;
-	u->writer.last = &u->writer.out;
-	u->writer.connection = s->connection;
-	u->writer.limit = 0;
 
     cln = ngx_tcp_cleanup_add(s, 0);
     if (cln == NULL) {
