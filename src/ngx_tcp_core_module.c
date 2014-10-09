@@ -4,10 +4,11 @@
 #include <ngx_event.h>
 #include <nginx.h>
 #include "ngx_tcp.h"
+#include "ngx_tcp_variables.h"
 
 
-static void *ngx_tcp_core_preconfiguration(ngx_conf_t *cf);
-static void * ngx_tcp_core_init_main_conf(ngx_conf_t *cf) ;
+static ngx_int_t ngx_tcp_core_preconfiguration(ngx_conf_t *cf);
+static char *ngx_tcp_core_init_main_conf(ngx_conf_t *cf, void *conf) ;
 static void *ngx_tcp_core_create_main_conf(ngx_conf_t *cf);
 static void *ngx_tcp_core_create_srv_conf(ngx_conf_t *cf);
 static char *ngx_tcp_core_merge_srv_conf(ngx_conf_t *cf, void *parent,
@@ -204,7 +205,7 @@ ngx_module_t  ngx_tcp_core_module = {
 
 static ngx_str_t  ngx_tcp_access_log = ngx_string("logs/tcp_access.log");
 
-static void *
+static ngx_int_t
 ngx_tcp_core_preconfiguration(ngx_conf_t *cf)
 {
 	//return NGX_OK;
@@ -246,8 +247,8 @@ ngx_tcp_core_create_main_conf(ngx_conf_t *cf)
     return cmcf;
 }
 
-static void *
-ngx_tcp_core_init_main_conf(ngx_conf_t *cf) 
+static char *
+ngx_tcp_core_init_main_conf(ngx_conf_t *cf,void *conf) 
 {
     ngx_tcp_core_main_conf_t  *cmcf;
 

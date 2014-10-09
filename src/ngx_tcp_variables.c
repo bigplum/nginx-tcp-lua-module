@@ -15,11 +15,11 @@ static ngx_int_t ngx_tcp_variable_unknown_header_in(ngx_tcp_session_t *s,
     ngx_tcp_variable_value_t *v, uintptr_t data);
 static ngx_int_t ngx_tcp_variable_unknown_header_out(ngx_tcp_session_t *s,
     ngx_tcp_variable_value_t *v, uintptr_t data);
+*/
 #if (NGX_HAVE_TCP_INFO)
 static ngx_int_t ngx_tcp_variable_tcpinfo(ngx_tcp_session_t *s,
     ngx_tcp_variable_value_t *v, uintptr_t data);
 #endif
-*/
 
 static ngx_int_t ngx_tcp_variable_binary_remote_addr(ngx_tcp_session_t *s,
 		ngx_tcp_variable_value_t *v, uintptr_t data);
