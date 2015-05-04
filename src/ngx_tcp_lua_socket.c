@@ -137,7 +137,8 @@ ngx_tcp_lua_inject_socket_api(ngx_log_t *log, lua_State *L)
     lua_pushcfunction(L, ngx_tcp_lua_socket_tcp_receiveuntil);
     lua_setfield(L, -2, "receiveuntil");
 
-    lua_pushcfunction(L, ngx_tcp_lua_req_socket_tcp_send);
+    //lua_pushcfunction(L, ngx_tcp_lua_req_socket_tcp_send);
+    lua_pushcfunction(L, ngx_tcp_lua_socket_tcp_send);
     lua_setfield(L, -2, "send");
 
     lua_pushcfunction(L, ngx_tcp_lua_socket_tcp_settimeout);
@@ -1560,9 +1561,6 @@ ngx_tcp_lua_socket_tcp_send(lua_State *L)
         return 2;
     }
 
-    if (u->is_downstream) {
-        return luaL_error(L, "attempt to write to request sockets");
-    }
 
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, s->connection->log, 0,
                    "lua socket send timeout: %M", u->send_timeout);
@@ -1584,6 +1582,11 @@ ngx_tcp_lua_socket_tcp_send(lua_State *L)
                     lua_typename(L, type));
 
             return luaL_argerror(L, 2, msg);
+    }
+
+    if (u->is_downstream) {
+		ngx_log_debug0(NGX_LOG_DEBUG_HTTP, s->connection->log, 0,
+				"downstream write" );
     }
 
     ctx = ngx_tcp_get_module_ctx(s, ngx_tcp_lua_module);
@@ -1923,8 +1926,8 @@ ngx_tcp_lua_socket_send(ngx_tcp_session_t *s,
 
     c = u->peer.connection;
 
-    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, s->connection->log, 0,
-                   "lua socket send data: %p", u);
+    ngx_log_debug3(NGX_LOG_DEBUG_HTTP, s->connection->log, 0,
+                   "lua socket send data: %p connect:%p log:%p ", u,c,c->log);
 
     dd("lua connection log: %p", c->log);
 
@@ -2888,6 +2891,10 @@ ngx_tcp_lua_req_socket(lua_State *L)
 
     c = s->connection;
     pc->connection = c;
+	u->writer.out = NULL;
+	u->writer.last = &u->writer.out;
+	u->writer.connection = c;
+	u->writer.limit = 0;
 
     ctx->data = u;
 

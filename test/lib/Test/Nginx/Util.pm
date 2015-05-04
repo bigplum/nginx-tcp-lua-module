@@ -53,7 +53,7 @@ our $Timeout = $ENV{TEST_NGINX_TIMEOUT} || 3;
 
 our $CheckLeak = $ENV{TEST_NGINX_CHECK_LEAK} || 0;
 
-our $ServerAddr = 'localhost';
+our $ServerAddr = '127.0.0.1';
 
 our $StapOutFileHandle;
 
@@ -637,7 +637,7 @@ $http_config
 
     server {
         listen          $ServerPort;
-        server_name     'localhost';
+        server_name     '127.0.0.1';
 
         client_max_body_size 30M;
         #client_body_buffer_size 4k;
