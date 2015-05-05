@@ -205,6 +205,7 @@ ngx_tcp_lua_init_session(ngx_tcp_session_t *s)
             ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
                           "failed to load Lua inlined code: %s", err);
         
+            ngx_tcp_finalize_session(s);
             return;
         }
     } else {
@@ -213,6 +214,7 @@ ngx_tcp_lua_init_session(ngx_tcp_session_t *s)
                 lscf->lua_src.len);
         
         if (script_path == NULL) {
+            ngx_tcp_finalize_session(s);
             return;
         }
         
@@ -227,6 +229,7 @@ ngx_tcp_lua_init_session(ngx_tcp_session_t *s)
             ngx_log_error(NGX_LOG_ERR, c->log, 0,
                           "failed to load Lua code: %s", err);
 
+            ngx_tcp_finalize_session(s);
             return;
         }
     }
