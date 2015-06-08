@@ -97,6 +97,16 @@ static int ngx_tcp_lua_socket_upstream_destroy(lua_State *L);
 static ngx_int_t ngx_tcp_lua_get_keepalive_peer(ngx_tcp_session_t *s, lua_State *L,
     int key_index, ngx_tcp_lua_socket_upstream_t *u);
 
+static int chain_size(ngx_chain_t *cl)
+{
+    int size=0;
+    while(cl!=NULL){
+        size++;
+        cl=cl->next;
+    }
+    return size;
+}
+
 
 void
 ngx_tcp_lua_inject_socket_api(ngx_log_t *log, lua_State *L)
@@ -269,7 +279,7 @@ ngx_tcp_lua_req_socket_tcp_send(lua_State *L)
     if (cl == NULL) {
         return luaL_error(L, "out of memory");
     }
-	b=cl->buf;
+    b=cl->buf;
     /*b = ngx_create_temp_buf(s->pool, size);
     if (b == NULL) {
         return luaL_error(L, "out of memory");
@@ -309,18 +319,18 @@ ngx_tcp_lua_req_socket_tcp_send(lua_State *L)
     ngx_log_debug0(NGX_LOG_DEBUG_HTTP, s->connection->log, 0, "lua send response" );
                    
     chain = s->connection->send_chain(s->connection, cl, 0);
-	
-	if(chain==cl){
-		size=size - ( cl->buf->last - cl->buf->pos );
-	}
-	/* free buf */
-	cl->next=ctx->free_recv_bufs;
-	ctx->free_recv_bufs=cl;
+    
+    if(chain==cl){
+        size=size - ( cl->buf->last - cl->buf->pos );
+    }
+    /* free buf */
+    cl->next=ctx->free_recv_bufs;
+    ctx->free_recv_bufs=cl;
 
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, s->connection->log, 0,
                   "tcp_lua write chain %p", chain);
     
-	lua_pushinteger(L, size);
+    lua_pushinteger(L, size);
     return 1;
 }
 
@@ -1515,6 +1525,30 @@ ngx_tcp_lua_socket_read(ngx_tcp_session_t *s,
     return rc;
 }
 
+static void
+ngx_tcp_lua_socket_write_handler(ngx_tcp_session_t *s)
+{
+    ngx_tcp_lua_ctx_t              *ctx;
+    ngx_tcp_lua_socket_upstream_t  *u;
+
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, s->connection->log, 0,
+            "lua request socket write event handler");
+
+    ctx = ngx_tcp_get_module_ctx(s, ngx_tcp_lua_module);
+    if (ctx == NULL) {
+        return;
+    }
+
+    u = ctx->data;
+
+    if (u && u->write_event_handler) {
+        u->write_event_handler(s, u);
+    }
+    if (!ctx->socket_busy && ctx->socket_ready) {
+        ngx_tcp_lua_wev_handler(s);
+    }
+
+}
 
 static int
 ngx_tcp_lua_socket_tcp_send(lua_State *L)
@@ -1585,8 +1619,8 @@ ngx_tcp_lua_socket_tcp_send(lua_State *L)
     }
 
     if (u->is_downstream) {
-		ngx_log_debug0(NGX_LOG_DEBUG_HTTP, s->connection->log, 0,
-				"downstream write" );
+        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, s->connection->log, 0,
+                "downstream write" );
     }
 
     ctx = ngx_tcp_get_module_ctx(s, ngx_tcp_lua_module);
@@ -1616,6 +1650,8 @@ ngx_tcp_lua_socket_tcp_send(lua_State *L)
         default:
             return luaL_error(L, "impossible to reach here");
     }
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP,s->connection->log, 0,"request chain size %d\n",chain_size(u->request_bufs));
+    
 
     u->request_bufs = cl;
 
@@ -1658,7 +1694,7 @@ ngx_tcp_lua_socket_tcp_send(lua_State *L)
 
     /* rc == NGX_AGAIN */
     /* set s->write_event_handler to go on session process */
-    s->write_event_handler = ngx_tcp_lua_wev_handler;
+    s->write_event_handler = ngx_tcp_lua_socket_write_handler; 
 
     u->waiting = 1;
     u->prepare_retvals = ngx_tcp_lua_socket_tcp_send_retval_handler;
@@ -1915,6 +1951,32 @@ ngx_tcp_lua_socket_send_handler(ngx_tcp_session_t *s,
     }
 }
 
+static ngx_int_t ngx_tcp_send_chain(ngx_connection_t *c,
+        ngx_buf_t *b)
+{
+    ngx_int_t                    n;
+    for (;;) {
+        n = c->send(c, b->pos, b->last - b->pos);
+
+        if (n < 0) {
+            /* NGX_ERROR || NGX_AGAIN */
+            break;
+        }
+
+        b->pos += n;
+        if (b->pos == b->last) {
+            ngx_log_debug0(NGX_LOG_DEBUG_HTTP, c->log, 0,
+                    "lua tcp socket sent all the data");
+            return NGX_OK;
+        }
+        /* keep sending more data */
+    }
+    if(n==NGX_ERROR){
+        return NGX_ERROR;
+    }
+
+    return NGX_AGAIN;
+}
 
 static ngx_int_t
 ngx_tcp_lua_socket_send(ngx_tcp_session_t *s,
@@ -1931,7 +1993,7 @@ ngx_tcp_lua_socket_send(ngx_tcp_session_t *s,
 
     dd("lua connection log: %p", c->log);
 
-    rc = ngx_output_chain(&u->output, u->request_sent ? NULL : u->request_bufs);
+    rc = ngx_tcp_send_chain(c,u->request_bufs->buf);//ngx_output_chain(&u->output, u->request_sent ? NULL : u->request_bufs);
 
     dd("output chain returned: %d", (int) rc);
 
@@ -1947,6 +2009,8 @@ ngx_tcp_lua_socket_send(ngx_tcp_session_t *s,
     }
 
     if (rc == NGX_AGAIN) {
+        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, c->log, 0,
+                "lua socket again ");
         u->write_event_handler = ngx_tcp_lua_socket_send_handler;
         u->read_event_handler = ngx_tcp_lua_socket_dummy_handler;
 
@@ -1980,6 +2044,8 @@ ngx_tcp_lua_socket_send(ngx_tcp_session_t *s,
                             &ctx->free_bufs, &ctx->busy_bufs, &u->request_bufs,
                             (ngx_buf_tag_t) &ngx_tcp_lua_module);
 
+    ngx_log_debug3(NGX_LOG_DEBUG_HTTP, c->log, 0,
+            "chain size: free:%d busy:%d request:%d", chain_size(&ctx->free_bufs),chain_size(&ctx->busy_bufs) ,chain_size(u->request_bufs));
     u->request_sent = 0;
     u->write_event_handler = ngx_tcp_lua_socket_dummy_handler;
 
@@ -2258,12 +2324,12 @@ ngx_tcp_lua_socket_test_connect(ngx_connection_t *c)
         }
 
         if (err) {
-			char errstr[255];
-			char * addr="";
-			if(c->sockaddr){
-				addr= inet_ntoa(((struct sockaddr_in*)(c->sockaddr))->sin_addr); 
-			}
-			snprintf(errstr,255,"connect() %s failed",addr);
+            char errstr[255];
+            char * addr="";
+            if(c->sockaddr){
+                addr= inet_ntoa(((struct sockaddr_in*)(c->sockaddr))->sin_addr); 
+            }
+            snprintf(errstr,255,"connect() %s failed",addr);
             (void) ngx_connection_error(c, err, errstr);
             return err;
         }
@@ -2824,13 +2890,13 @@ ngx_tcp_lua_req_socket(lua_State *L)
 
     lua_pushlightuserdata(L, &ngx_tcp_lua_request_socket_key);
     lua_rawget(L, LUA_GLOBALSINDEX);
-	if(!lua_isnil(L,-1)){
-		lua_settop(L, 1);
-		lua_pushnil(L);
-		return 2;
-	}else{
-		lua_pop(L,1);
-	}
+    if(!lua_isnil(L,-1)){
+        lua_settop(L, 1);
+        lua_pushnil(L);
+        return 2;
+    }else{
+        lua_pop(L,1);
+    }
     
 
     ctx = ngx_tcp_get_module_ctx(s, ngx_tcp_lua_module);
@@ -2891,10 +2957,10 @@ ngx_tcp_lua_req_socket(lua_State *L)
 
     c = s->connection;
     pc->connection = c;
-	u->writer.out = NULL;
-	u->writer.last = &u->writer.out;
-	u->writer.connection = c;
-	u->writer.limit = 0;
+    u->writer.out = NULL;
+    u->writer.last = &u->writer.out;
+    u->writer.connection = c;
+    u->writer.limit = 0;
 
     ctx->data = u;
 
@@ -2905,14 +2971,13 @@ ngx_tcp_lua_req_socket(lua_State *L)
     }
 
     lua_pushlightuserdata(L, &ngx_tcp_lua_request_socket_key);
-	lua_pushvalue (L,1);
-	lua_rawset(L, LUA_GLOBALSINDEX);
+    lua_pushvalue (L,1);
+    lua_rawset(L, LUA_GLOBALSINDEX);
 
     lua_settop(L, 1);
     lua_pushnil(L);
     return 2;
 }
-
 
 static void
 ngx_tcp_lua_req_socket_rev_handler(ngx_tcp_session_t *s)
