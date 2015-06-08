@@ -419,15 +419,15 @@ ngx_tcp_lua_socket_tcp_connect(lua_State *L)
 
     p = (u_char *) luaL_checklstring(L, 2, &len);
 
-    host.data = ngx_palloc(s->pool, len + 1);
+    host.data = p;//ngx_palloc(s->pool, len + 1);
     if (host.data == NULL) {
         return luaL_error(L, "out of memory");
     }
 
     host.len = len;
 
-    ngx_memcpy(host.data, p, len);
-    host.data[len] = '\0';
+    /*ngx_memcpy(host.data, p, len);
+    host.data[len] = '\0';*/
 
     key_index = 2;
     custom_pool = 0;
